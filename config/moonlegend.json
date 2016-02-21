@@ -1,0 +1,14 @@
+{
+  "db": {
+    "driver": "mysql",
+    "endpoint": "root:root@tcp(127.0.0.1:3306)/moonlegend"
+  },
+  "logging": {
+    "file": "moonlegend.log",
+    "stdout": true,
+    "level": "debug",
+    "format": "%{color}%{time:2006-01-02 15:04:05.999Z-07:00} %{shortfile} %{level} %{color:reset} %{message}"
+  },
+  "listenaddr": "0.0.0.0",
+  "listenport": "8080"
+}
