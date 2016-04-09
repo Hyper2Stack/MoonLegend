@@ -3,7 +3,11 @@ package model
 import (
     "fmt"
     "strings"
+
+    "github.com/op/go-logging"
 )
+
+var log, _ = logging.GetLogger("moonlegend")
 
 ////////////////////////////////////////////////////////////////////////////////
 

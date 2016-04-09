@@ -152,21 +152,21 @@ func (r *Repo) Tags() []*RepoTag {
     )
     if err != nil {
         panic(err)
-    }   
+    }
     defer rows.Close()
-    
+
     l := make([]*RepoTag, 0)
-    for rows.Next() { 
+    for rows.Next() {
         t := new(RepoTag)
         if err := rows.Scan(
             &t.Name,
         ); err != nil {
             panic(err)
-        }   
-        
+        }
+
         l = append(l, t)
-    }   
-    
+    }
+
     return l
 }
 

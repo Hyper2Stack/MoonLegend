@@ -2,6 +2,8 @@ package handler
 
 import (
     "path/filepath"
+
+    "github.com/op/go-logging"
 )
 
 const (
@@ -12,6 +14,8 @@ const (
 
     TokenExpireTime = 3600000
 )
+
+var log, _ = logging.GetLogger("moonlegend")
 
 func encodeUserToken(username string) string {
     // TBD
@@ -30,6 +34,6 @@ func hashPassword(password string) string {
 }
 
 func absCleanPath(path string) string {
-	absPath, _ := filepath.Abs(path)
-	return filepath.Clean(absPath)
+    absPath, _ := filepath.Abs(path)
+    return filepath.Clean(absPath)
 }

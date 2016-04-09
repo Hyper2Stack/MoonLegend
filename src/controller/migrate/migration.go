@@ -32,16 +32,16 @@ func Migrate_1(tx migration.LimitedTx) error {
         instanceTable,
         setInstanceForeignKeyNode,
         setInstanceForeignKeyService,
-    }   
-    
+    }
+
     for _, cmd := range scripts {
         if _, err := tx.Exec(cmd); err != nil {
             return err
-        }   
-    }   
-    
+        }
+    }
+
     return nil
-} 
+}
 
 // user
 var userTable = `

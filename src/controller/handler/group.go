@@ -58,7 +58,7 @@ func GetGroup(w http.ResponseWriter, r *http.Request) {
 
 // PUT /api/v1/user/groups/{group_name}
 //
-func PutGroup(w http.ResponseWriter, r *http.Request) {    
+func PutGroup(w http.ResponseWriter, r *http.Request) {
     defer r.Body.Close()
 
     in := struct {
@@ -70,7 +70,7 @@ func PutGroup(w http.ResponseWriter, r *http.Request) {
         http.Error(w, RequestBodyDecodeError, http.StatusBadRequest)
         return
     }
-    
+
     if len(in.Name) == 0 {
         http.Error(w, RequestBodyError, http.StatusBadRequest)
         return
@@ -117,7 +117,7 @@ func AddGroupNode(w http.ResponseWriter, r *http.Request) {
         http.Error(w, RequestBodyError, http.StatusBadRequest)
         return
     }
-    
+
     n := model.GetNodeByNameAndOwner(in.Name, LoginUserVars[r].Id)
     if n == nil {
         http.Error(w, RequestBodyError, http.StatusBadRequest)
@@ -158,7 +158,7 @@ func AddDeployment(w http.ResponseWriter, r *http.Request) {
     if GroupVars[r].Deployment != nil {
         GroupVars[r].DeleteDeployment()
     }
-    
+
     if len(in.RepoName) != 0 {
         re := model.GetRepoByNameAndOwner(in.RepoName, LoginUserVars[r].Id)
         if re == nil {

@@ -79,7 +79,7 @@ func ListGroup(cs []*Condition, o *Order, p *Paging) []*Group {
         ); err != nil {
             panic(err)
         }
-        
+
         if repoId != 0 {
             d := new(Deployment)
             d.RepoName = GetRepoById(repoId).Name
@@ -176,7 +176,7 @@ func (g *Group) Delete() {
             g.DeleteMembershipAll()
         }
     }
-    
+
     if (g.Deployment != nil) {
         g.DeleteDeployment()
     }
@@ -285,7 +285,7 @@ func (g *Group) DeleteService() {
         DELETE FROM
             service
         WHERE
-            groupId = 
+            groupId =
     `)
     if err != nil {
         panic(err)
@@ -375,7 +375,7 @@ func GetServicesByGroupId(groupId int64) []*Service {
         ); err != nil {
             panic(err)
         }
-        
+
         s.Instances = GetInstancesByServiceId(serviceId)
 
         l = append(l, s)
@@ -443,7 +443,7 @@ func GetInstancesByServiceId(serviceId int64) []*Instance {
         ); err != nil {
             panic(err)
         }
-        
+
         i.Node = GetNodeById(nodeId)
         i.Container = c
 

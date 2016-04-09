@@ -95,21 +95,21 @@ func GetNodesByGroupId(groupId int64) []*Node {
     )
     if err != nil {
         panic(err)
-    }   
+    }
     defer rows.Close()
-    
+
     l := make([]*Node, 0)
-    for rows.Next() { 
+    for rows.Next() {
         n := new(Node)
         if err := rows.Scan(
             &n.Id, &n.Name, &n.Description, &n.Owner,
         ); err != nil {
             panic(err)
-        }   
-        
+        }
+
         l = append(l, n)
-    }   
-    
+    }
+
     return l
 }
 
@@ -191,21 +191,21 @@ func (n *Node) Tags() []*NodeTag {
     )
     if err != nil {
         panic(err)
-    }   
+    }
     defer rows.Close()
-    
+
     l := make([]*NodeTag, 0)
-    for rows.Next() { 
+    for rows.Next() {
         t := new(NodeTag)
         if err := rows.Scan(
             &t.Name,
         ); err != nil {
             panic(err)
-        }   
-        
+        }
+
         l = append(l, t)
-    }   
-    
+    }
+
     return l
 }
 
@@ -355,21 +355,21 @@ func (n *Nic) NicTags() []*NicTag {
     )
     if err != nil {
         panic(err)
-    }   
+    }
     defer rows.Close()
-    
+
     l := make([]*NicTag, 0)
-    for rows.Next() { 
+    for rows.Next() {
         t := new(NicTag)
         if err := rows.Scan(
             &t.Name,
         ); err != nil {
             panic(err)
-        }   
-        
+        }
+
         l = append(l, t)
-    }   
-    
+    }
+
     return l
 }
 

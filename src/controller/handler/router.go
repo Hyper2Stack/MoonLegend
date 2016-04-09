@@ -16,11 +16,11 @@ type Route struct {
 }
 
 var routes = []Route{
-	// ping
+    // ping
     Route{"GET",    "/api/v1/ping", Ping},
 
     // login
-	Route{"POST",   "/api/v1/login",               wrapper(Login)},
+    Route{"POST",   "/api/v1/login",               wrapper(Login)},
 
     // user
     Route{"GET",    "/api/v1/user",                wrapper(authWrapper(GetMyProfile))},
@@ -78,10 +78,10 @@ var routes = []Route{
 
     // admin
     Route{"POST",   "/api/v1/user",                                wrapper(authWrapper(adminWrapper(AddUser)))},
-    Route{"GET",    "/api/v1/users/{user_name}",                   wrapper(authWrapper(adminWrapper(GetUserProfile)))},
-    Route{"GET",    "/api/v1/users/{user_name}/repos",             wrapper(authWrapper(adminWrapper(ListUserRepo)))},
+    Route{"GET",    "/api/v1/users/{user_name}",                   wrapper(authWrapper(adminWrapper(userWrapper(GetUserProfile))))},
+    Route{"GET",    "/api/v1/users/{user_name}/repos",             wrapper(authWrapper(adminWrapper(userWrapper(ListUserRepo))))},
     // TODO: Wrappers order dependency???
-    Route{"GET",    "/api/v1/users/{user_name}/repos/{repo_name}", wrapper(authWrapper(adminWrapper(repoWrapper(GetUserRepo))))},
+    Route{"GET",    "/api/v1/users/{user_name}/repos/{repo_name}", wrapper(authWrapper(adminWrapper(userWrapper(repoWrapper(GetUserRepo)))))},
 
     // TODO: how to add admin user???
 }
@@ -119,12 +119,12 @@ func wrapper(inner http.HandlerFunc) http.HandlerFunc {
             if err := recover(); err != nil {
                 debug.PrintStack()
                 wr.WriteHeader(http.StatusInternalServerError)
-                fmt.Printf("Panic: %v\n", err)
+                log.Criticalf("Panic: %v", err)
                 fmt.Fprintf(w, fmt.Sprintln(err))
             }
 
             d := time.Now().Sub(s)
-            fmt.Printf("Wrapper %s %s %d %s\n", r.Method, r.RequestURI, wr.statusCode, d.String())
+            log.Infof("Wrapper %s %s %d %s", r.Method, r.RequestURI, wr.statusCode, d.String())
         }()
 
         inner.ServeHTTP(wr, r)

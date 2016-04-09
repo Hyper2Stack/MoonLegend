@@ -1,8 +1,8 @@
 package main
 
 import (
-	"flag"
-	"os"
+    "flag"
+    "os"
     "net/http"
     "runtime"
 
@@ -10,41 +10,41 @@ import (
     "controller/migrate"
     "controller/model"
 
-	"github.com/op/go-logging"
+    "github.com/op/go-logging"
 )
 
 var version string = "DEV_VERSION"
 
 type DB struct {
-	Driver     string `json:"driver"`
-	Endpoint   string `json:"endpoint"`
+    Driver     string `json:"driver"`
+    Endpoint   string `json:"endpoint"`
 }
 
 type Logging struct {
-	File   string `json:"file"`
-	Stdout bool   `json:"stdout"`
-	Level  string `json:"level"`
-	Format string `json:"format"`
+    File   string `json:"file"`
+    Stdout bool   `json:"stdout"`
+    Level  string `json:"level"`
+    Format string `json:"format"`
 }
 
 type Config struct {
-	Db            DB      `json:"db"`
-	Logging       Logging `json:"logging"`
-	Listenaddr    string  `json:"listenaddr"`
-	Listenport    string  `json:"listenport"`
+    Db            DB      `json:"db"`
+    Logging       Logging `json:"logging"`
+    Listenaddr    string  `json:"listenaddr"`
+    Listenport    string  `json:"listenport"`
 }
 
 var (
-	config    Config
-	logLevels = map[string]logging.Level{
-		"debug":    logging.DEBUG,
-		"info":     logging.INFO,
-		"notice":   logging.NOTICE,
-		"warning":  logging.WARNING,
-		"error":    logging.ERROR,
-		"critical": logging.CRITICAL,
-	}
-	log, _ = logging.GetLogger("moonlegend")
+    config    Config
+    logLevels = map[string]logging.Level{
+        "debug":    logging.DEBUG,
+        "info":     logging.INFO,
+        "notice":   logging.NOTICE,
+        "warning":  logging.WARNING,
+        "error":    logging.ERROR,
+        "critical": logging.CRITICAL,
+    }
+    log, _ = logging.GetLogger("moonlegend")
 )
 
 func initLogger() {
@@ -74,33 +74,33 @@ func initLogger() {
 func main() {
     runtime.GOMAXPROCS(runtime.NumCPU())
 
-	configPath := flag.String("conf",
-		"./config/moonlegend.json", "Path of config file")
-	flag.Parse()
+    configPath := flag.String("conf",
+        "./config/moonlegend.json", "Path of config file")
+    flag.Parse()
 
-	if err := LoadJsonConfig(*configPath, &config); err != nil {
+    if err := LoadJsonConfig(*configPath, &config); err != nil {
         log.Error("Fail to parse config file: " + *configPath)
-		os.Exit(1)
-	}
-	initLogger()
-	log.Info("moonlegend(" + version + ") started")
+        os.Exit(1)
+    }
+    initLogger()
+    log.Info("moonlegend(" + version + ") started")
 
     if len(config.Db.Driver)==0 || len(config.Db.Endpoint) == 0 {
         log.Error("DB driver or endpoint not found")
-		os.Exit(1)
+        os.Exit(1)
     }
 
     if err := model.Initialize(config.Db.Driver, config.Db.Endpoint); err != nil {
         log.Error("Init db failed: " + err.Error())
-		os.Exit(1)
+        os.Exit(1)
     }
 
     if err := migrate.Run(config.Db.Endpoint); err != nil {
         log.Error("Schema migration failed: " + err.Error())
-		os.Exit(1)
+        os.Exit(1)
     }
 
     log.Info("Listening on " + config.Listenaddr + ":" + config.Listenport + "...")
     log.Error(http.ListenAndServe(":"+config.Listenport, handler.NewRouter()))
-	os.Exit(1)
+    os.Exit(1)
 }

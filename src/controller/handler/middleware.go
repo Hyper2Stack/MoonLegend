@@ -2,7 +2,6 @@ package handler
 
 import (
     "net/http"
-    "fmt"
     "os"
 
     "github.com/gorilla/mux"
@@ -35,6 +34,8 @@ func init() {
 
 func authWrapper(inner http.HandlerFunc) http.HandlerFunc {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        defer delete(LoginUserVars, r)
+
         name, valid := decodeUserToken(r.Header.Get("Authorization"))
         if !valid {
             w.WriteHeader(http.StatusUnauthorized)
@@ -48,19 +49,14 @@ func authWrapper(inner http.HandlerFunc) http.HandlerFunc {
 
         LoginUserVars[r] = u
 
-        fmt.Printf("authWrapper started\n")
-
-        defer func() {
-            delete(LoginUserVars, r)
-            fmt.Printf("authWrapper completed\n")
-        }()
-
         inner.ServeHTTP(w, r)
     })
 }
 
 func repoWrapper(inner http.HandlerFunc) http.HandlerFunc {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        defer delete(RepoVars, r)
+
         if LoginUserVars[r] == nil {
             w.WriteHeader(http.StatusUnauthorized)
             return
@@ -74,12 +70,6 @@ func repoWrapper(inner http.HandlerFunc) http.HandlerFunc {
         }
 
         RepoVars[r] = re
-        fmt.Printf("repoWrapper received message %s\n", name)
-
-        defer func() {
-            delete(RepoVars, r)
-            fmt.Printf("repoWrapper completed\n")
-        }()
 
         inner.ServeHTTP(w, r)
     })
@@ -87,6 +77,8 @@ func repoWrapper(inner http.HandlerFunc) http.HandlerFunc {
 
 func nodeWrapper(inner http.HandlerFunc) http.HandlerFunc {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        defer delete(NodeVars, r)
+
         if LoginUserVars[r] == nil {
             w.WriteHeader(http.StatusUnauthorized)
             return
@@ -100,12 +92,6 @@ func nodeWrapper(inner http.HandlerFunc) http.HandlerFunc {
         }
 
         NodeVars[r] = n
-        fmt.Printf("nodeWrapper received message %s\n", name)
-
-        defer func() {
-            delete(NodeVars, r)
-            fmt.Printf("nodeWrapper completed\n")
-        }()
 
         inner.ServeHTTP(w, r)
     })
@@ -117,7 +103,7 @@ func nicWrapper(inner http.HandlerFunc) http.HandlerFunc {
             w.WriteHeader(http.StatusUnauthorized)
             return
         }
-        
+
         if NodeVars[r] == nil {
             w.WriteHeader(http.StatusBadRequest)
             return
@@ -162,12 +148,18 @@ func groupWrapper(inner http.HandlerFunc) http.HandlerFunc {
 
 func adminWrapper(inner http.HandlerFunc) http.HandlerFunc {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        defer delete(UserVars, r)
-
         if LoginUserVars[r] == nil || !model.IsAdmin(LoginUserVars[r].Id ) {
             w.WriteHeader(http.StatusUnauthorized)
             return
         }
+
+        inner.ServeHTTP(w, r)
+    })
+}
+
+func userWrapper(inner http.HandlerFunc) http.HandlerFunc {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        defer delete(UserVars, r)
 
         name := mux.Vars(r)["user_name"]
         u := model.GetUserByName(name)
@@ -185,7 +177,7 @@ func adminWrapper(inner http.HandlerFunc) http.HandlerFunc {
 func tagWrapper(inner http.HandlerFunc) http.HandlerFunc {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         TagVars[r] = mux.Vars(r)["tag_name"]
- 
+
         defer delete(TagVars, r)
 
         inner.ServeHTTP(w, r)

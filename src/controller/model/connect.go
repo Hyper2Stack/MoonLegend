@@ -9,7 +9,7 @@ import (
 var db *sql.DB
 
 func Initialize(driver string, uri string) error {
-    var err error 
+    var err error
     if db, err = sql.Open(driver, uri); err != nil {
         return err
     }

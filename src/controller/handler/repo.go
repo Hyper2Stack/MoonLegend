@@ -76,7 +76,7 @@ func GetRepo(w http.ResponseWriter, r *http.Request) {
 
 // PUT /api/v1/user/repos/{repo_name}
 //
-func PutRepo(w http.ResponseWriter, r *http.Request) {    
+func PutRepo(w http.ResponseWriter, r *http.Request) {
     in := struct {
         Name        string `json:"name"`
         Description string `json:"description"`
@@ -87,7 +87,7 @@ func PutRepo(w http.ResponseWriter, r *http.Request) {
         http.Error(w, RequestBodyDecodeError, http.StatusBadRequest)
         return
     }
-    
+
     if len(in.Name) == 0 {
         http.Error(w, RequestBodyError, http.StatusBadRequest)
         return
@@ -102,7 +102,7 @@ func PutRepo(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         panic(err)
     }
-    
+
     defer func() {
         r.Body.Close()
         file.Close()

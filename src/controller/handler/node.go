@@ -57,7 +57,7 @@ func GetNode(w http.ResponseWriter, r *http.Request) {
 
 // PUT /api/v1/user/nodes/{node_name}
 //
-func PutNode(w http.ResponseWriter, r *http.Request) {    
+func PutNode(w http.ResponseWriter, r *http.Request) {
     defer r.Body.Close()
 
     in := struct {
