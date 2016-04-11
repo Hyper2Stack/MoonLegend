@@ -14,12 +14,14 @@ type Group struct {
 }
 
 type Deployment struct {
-    RepoName   string     `json:"name"`
-    Services   []*Service `json:"services"`
+    Repo     string              `json:"repo"`
+    Services []*Service          `json:"services"`
+    Depends  map[string][]string `json:"depends"`
 }
 
 type Service struct {
     Name       string      `json:"name"`
+    Image      string      `json:"image"`
     Instances  []*Instance `json:"instance"`
 }
 
@@ -31,15 +33,15 @@ type Instance struct {
 
 type Entrypoint struct {
     Protocol      string `json:"protocol"`
-    ListeningAddr string `json:"listeningaddr"`
-    ListeningPort string `json:"listeningport"`
-    ContainerPort string `json:"containerport"`
+    ListeningAddr string `json:"listening_addr"`
+    ListeningPort string `json:"listening_port"`
+    ContainerPort string `json:"container_port"`
 }
 
 type Container struct {
     Name           string `json:"name"`
-    StartCommand   string `json:"startcommand"`
-    DestroyCommand string `json:"destroycommand"`
+    StartCommand   string `json:"start_command"`
+    DestroyCommand string `json:"destroy_command"`
 }
 
 const (
