@@ -26,10 +26,8 @@ func init() {
     LoginUserVars = make(map[*http.Request]*model.User)
     RepoVars      = make(map[*http.Request]*model.Repo)
     NodeVars      = make(map[*http.Request]*model.Node)
-    NicVars       = make(map[*http.Request]*model.Nic)
     GroupVars     = make(map[*http.Request]*model.Group)
     UserVars      = make(map[*http.Request]*model.User)
-    TagVars       = make(map[*http.Request]string)
 }
 
 func authWrapper(inner http.HandlerFunc) http.HandlerFunc {
@@ -63,7 +61,7 @@ func repoWrapper(inner http.HandlerFunc) http.HandlerFunc {
         }
 
         name := mux.Vars(r)["repo_name"]
-        re := model.GetRepoByNameAndOwner(name, LoginUserVars[r].Id)
+        re := model.GetRepoByNameAndOwnerId(name, LoginUserVars[r].Id)
         if re == nil {
             w.WriteHeader(http.StatusNotFound)
             return
@@ -85,40 +83,13 @@ func nodeWrapper(inner http.HandlerFunc) http.HandlerFunc {
         }
 
         name := mux.Vars(r)["node_name"]
-        n := model.GetNodeByNameAndOwner(name, LoginUserVars[r].Id)
+        n := model.GetNodeByNameAndOwnerId(name, LoginUserVars[r].Id)
         if n == nil {
             w.WriteHeader(http.StatusNotFound)
             return
         }
 
         NodeVars[r] = n
-
-        inner.ServeHTTP(w, r)
-    })
-}
-
-func nicWrapper(inner http.HandlerFunc) http.HandlerFunc {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        if LoginUserVars[r] == nil {
-            w.WriteHeader(http.StatusUnauthorized)
-            return
-        }
-
-        if NodeVars[r] == nil {
-            w.WriteHeader(http.StatusBadRequest)
-            return
-        }
-
-        name := mux.Vars(r)["nic_name"]
-        n := NodeVars[r].GetNicByName(name)
-        if n == nil {
-            w.WriteHeader(http.StatusNotFound)
-            return
-        }
-
-        NicVars[r] = n
-
-        defer delete(NicVars, r)
 
         inner.ServeHTTP(w, r)
     })
@@ -134,7 +105,7 @@ func groupWrapper(inner http.HandlerFunc) http.HandlerFunc {
         }
 
         name := mux.Vars(r)["group_name"]
-        g := model.GetGroupByNameAndOwner(name, LoginUserVars[r].Id)
+        g := model.GetGroupByNameAndOwnerId(name, LoginUserVars[r].Id)
         if g == nil {
             w.WriteHeader(http.StatusNotFound)
             return
@@ -169,16 +140,6 @@ func userWrapper(inner http.HandlerFunc) http.HandlerFunc {
         }
 
         UserVars[r] = u
-
-        inner.ServeHTTP(w, r)
-    })
-}
-
-func tagWrapper(inner http.HandlerFunc) http.HandlerFunc {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        TagVars[r] = mux.Vars(r)["tag_name"]
-
-        defer delete(TagVars, r)
 
         inner.ServeHTTP(w, r)
     })

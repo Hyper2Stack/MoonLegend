@@ -1,25 +1,33 @@
 package model
 
 import (
+    "encoding/json"
 )
 
 type Group struct {
-    Id          int64       `json:"id"`
-    Name        string      `json:"name"`
-    Description string      `json:"description"`
-    Owner       int64       `json:"owner"`
-    Status      string      `json:"status"`
-    Nodes       []*Node     `json:"nodes"`
-    Deployment  *Deployment `json:"deployment"`
+    Id              int64               `json:"id"`
+    Name            string              `json:"name"`
+    Description     string              `json:"description"`
+    OwnerId         int64               `json:"owner_id"`
+    Status          string              `json:"status"`
+    Deployment      *Deployment         `json:"deployment"`
+    Process         []*InstanceStatus   `json:"process"`
+}
+
+type InstanceStatus struct {
+    Service  string `json:"service"`
+    Instance string `json:"instance"`
+    Status   string `json:"status"`
 }
 
 type Deployment struct {
-    RepoName   string     `json:"name"`
-    Services   []*Service `json:"services"`
+    Repo       string               `json:"repo"`
+    Services   map[string]*Service  `json:"services"`
 }
 
 type Service struct {
-    Name       string      `json:"name"`
+    Image      string      `json:"image"`
+    Depends    []string    `json:"depends"`
     Instances  []*Instance `json:"instance"`
 }
 
@@ -31,15 +39,15 @@ type Instance struct {
 
 type Entrypoint struct {
     Protocol      string `json:"protocol"`
-    ListeningAddr string `json:"listeningaddr"`
-    ListeningPort string `json:"listeningport"`
-    ContainerPort string `json:"containerport"`
+    ListeningAddr string `json:"listening_addr"`
+    ListeningPort string `json:"listening_port"`
+    ContainerPort string `json:"container_port"`
 }
 
 type Container struct {
-    Name           string `json:"name"`
-    StartCommand   string `json:"startcommand"`
-    DestroyCommand string `json:"destroycommand"`
+    Name         string `json:"name"`
+    RunCommand   string `json:"run_command"`
+    RmCommand    string `json:"rm_command"`
 }
 
 const (
@@ -60,7 +68,7 @@ func ListGroup(cs []*Condition, o *Order, p *Paging) []*Group {
 
     rows, err := db.Query(`
         SELECT
-            id, name, description, owner, status, repoId
+            id, name, description, owner_id, status, deployment, process
         FROM
             nodeGroup
         ` + where + order + limit, vs...,
@@ -72,22 +80,22 @@ func ListGroup(cs []*Condition, o *Order, p *Paging) []*Group {
 
     l := make([]*Group, 0)
     for rows.Next() {
-        var repoId int64
         g := new(Group)
+        var deployInfo string
+        var processInfo string
         if err := rows.Scan(
-            &g.Id, &g.Name, &g.Description, &g.Owner, &g.Status, &repoId,
+            &g.Id, &g.Name, &g.Description, &g.OwnerId, &g.Status, &deployInfo, &processInfo,
         ); err != nil {
             panic(err)
         }
 
-        if repoId != 0 {
-            d := new(Deployment)
-            d.RepoName = GetRepoById(repoId).Name
-            d.Services = GetServicesByGroupId(g.Id)
-            g.Deployment = d
+        if err := json.Unmarshal([]byte(deployInfo), &g.Deployment); err != nil {
+            panic(err)
         }
 
-        g.Nodes = GetNodesByGroupId(g.Id)
+        if err := json.Unmarshal([]byte(processInfo), &g.Process); err != nil {
+            panic(err)
+        }
 
         l = append(l, g)
     }
@@ -107,10 +115,10 @@ func GetGroupById(id int64) *Group {
     return l[0]
 }
 
-func GetGroupByNameAndOwner(name string, owner int64) *Group {
+func GetGroupByNameAndOwnerId(name string, ownerId int64) *Group {
     conditions := make([]*Condition, 0)
     conditions = append(conditions, NewCondition("name", "=", name))
-    conditions = append(conditions, NewCondition("owner", "=", owner))
+    conditions = append(conditions, NewCondition("owner_id", "=", ownerId))
 
     l := ListGroup(conditions, nil, nil)
     if len(l) == 0 {
@@ -123,17 +131,27 @@ func GetGroupByNameAndOwner(name string, owner int64) *Group {
 func (g *Group) Save() {
     stmt, err := db.Prepare(`
         INSERT INTO nodeGroup(
-            name, description, owner, status
+            name, description, owner_id, status, deployment, process
         )
-        VALUES(?, ?, ?, ?)
+        VALUES(?, ?, ?, ?, ?, ?)
     `)
     if err != nil {
         panic(err)
     }
     defer stmt.Close()
 
+    deployInfo, err := json.Marshal(g.Deployment)
+    if err != nil {
+        panic(err)
+    }
+
+    processInfo, err := json.Marshal(g.Process)
+    if err != nil {
+        panic(err)
+    }
+
     result, err := stmt.Exec(
-        g.Name, g.Description, g.Owner, g.Status,
+        g.Name, g.Description, g.OwnerId, g.Status, string(deployInfo), string(processInfo),
     )
     if err != nil {
         panic(err)
@@ -152,6 +170,9 @@ func (g *Group) Update() {
         SET
             name = ?,
             description = ?,
+            status = ?,
+            deployment = ?,
+            process = ?
         WHERE
             id = ?
     `)
@@ -160,27 +181,24 @@ func (g *Group) Update() {
     }
     defer stmt.Close()
 
+    deployInfo, err := json.Marshal(g.Deployment)
+    if err != nil {
+        panic(err)
+    }
+
+    processInfo, err := json.Marshal(g.Process)
+    if err != nil {
+        panic(err)
+    }
+
     if _, err := stmt.Exec(
-        g.Name, g.Description, g.Id,
+        g.Name, g.Description, g.Status, string(deployInfo), string(processInfo), g.Id,
     ); err != nil {
         panic(err)
     }
 }
 
 func (g *Group) Delete() {
-    if (g.Nodes != nil) {
-        for _, n := range g.Nodes {
-            // delete from nodeTable
-            n.Delete()
-            // delete from nodeMembershipTable
-            g.DeleteMembershipAll()
-        }
-    }
-
-    if (g.Deployment != nil) {
-        g.DeleteDeployment()
-    }
-
     stmt, err := db.Prepare(`
         DELETE FROM
             nodeGroup
@@ -199,10 +217,50 @@ func (g *Group) Delete() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-func (g *Group) AddMembership(nodeId int64) {
+func (g *Group) Nodes() []*Node {
+    rows, err := db.Query(`
+        SELECT
+            node.id, node.uuid, node.name, node.description, node.status, node.owner_id, node.tags, node.nics
+        FROM
+            node, nodeMembership
+        WHERE
+            nodeMembership.group_id =  ? and node.id = nodeMembership.node_id
+        `, g.Id,
+    )
+    if err != nil {
+        panic(err)
+    }
+    defer rows.Close()
+
+    l := make([]*Node, 0)
+    for rows.Next() {
+        n := new(Node)
+        var tagInfo string
+        var nicInfo string
+        if err := rows.Scan(
+            &n.Id, &n.Uuid, &n.Name, &n.Description, &n.Status, &n.OwnerId, &tagInfo, &nicInfo,
+        ); err != nil {
+            panic(err)
+        }
+
+        if err := json.Unmarshal([]byte(tagInfo), &n.Tags); err != nil {
+            panic(err)
+        }
+
+        if err := json.Unmarshal([]byte(nicInfo), &n.Nics); err != nil {
+            panic(err)
+        }
+
+        l = append(l, n)
+    }
+
+    return l
+}
+
+func (g *Group) AddNode(node *Node) {
     stmt, err := db.Prepare(`
         INSERT INTO nodeMembership(
-            groupId, nodeId
+            group_id, node_id
         )
         VALUES(?, ?)
     `)
@@ -212,264 +270,26 @@ func (g *Group) AddMembership(nodeId int64) {
     defer stmt.Close()
 
     _, err = stmt.Exec(
-        g.Id, nodeId,
+        g.Id, node.Id,
     )
     if err != nil {
         panic(err)
     }
 }
 
-func (g *Group) DeleteMembershipAll() {
+func (g *Group) DeleteNode(node *Node) {
     stmt, err := db.Prepare(`
         DELETE FROM
             nodeMembership
         WHERE
-            groupId = ?
+            group_id = ? and node_id = ?
     `)
     if err != nil {
         panic(err)
     }
     defer stmt.Close()
 
-    if _, err := stmt.Exec(g.Id); err != nil {
-        panic(err)
-    }
-}
-
-func (g *Group) DeleteMembership(nodeId int64) {
-    stmt, err := db.Prepare(`
-        DELETE FROM
-            nodeMembership
-        WHERE
-            groupId = ? and nodeId = ?
-    `)
-    if err != nil {
-        panic(err)
-    }
-    defer stmt.Close()
-
-    if _, err := stmt.Exec(g.Id, nodeId); err != nil {
-        panic(err)
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-func (g *Group) DeleteDeployment() {
-    // delete from instance table
-    g.DeleteInstance()
-    // delete from service table
-    g.DeleteService()
-    stmt, err := db.Prepare(`
-        UPDATE
-            nodeGroup
-        SET
-            repoId = 0,
-        WHERE
-            id = ?
-    `)
-    if err != nil {
-        panic(err)
-    }
-    defer stmt.Close()
-
-    if _, err := stmt.Exec(
-        g.Id,
-    ); err != nil {
-        panic(err)
-    }
-}
-
-func (g *Group) DeleteService() {
-    stmt, err := db.Prepare(`
-        DELETE FROM
-            service
-        WHERE
-            groupId =
-    `)
-    if err != nil {
-        panic(err)
-    }
-    defer stmt.Close()
-
-    if _, err := stmt.Exec(g.Id); err != nil {
-        panic(err)
-    }
-}
-
-func (g *Group) DeleteInstance() {
-    stmt, err := db.Prepare(`
-        DELETE FROM
-            instance
-        WHERE
-            serviceId in (SELECT id from service where groupId = ?)
-    `)
-    if err != nil {
-        panic(err)
-    }
-    defer stmt.Close()
-
-    if _, err := stmt.Exec(g.Id); err != nil {
-        panic(err)
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-func (g *Group) Execute(repoId int64) {
-    for _, s := range g.Deployment.Services {
-        s.Execute(g.Id)
-    }
-    stmt, err := db.Prepare(`
-        UPDATE
-            nodeGroup
-        SET
-            repoId = ?,
-        WHERE
-            id = ?
-    `)
-    if err != nil {
-        panic(err)
-    }
-    defer stmt.Close()
-
-    if _, err := stmt.Exec(
-        repoId, g.Id,
-    ); err != nil {
-        panic(err)
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-func (g *Group) ParseYml(path string) error {
-    // TBD
-    return nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-func GetServicesByGroupId(groupId int64) []*Service {
-    rows, err := db.Query(`
-        SELECT
-            id, name, configJson
-        FROM
-            service
-        WHERE
-            groupId = ?
-        `, groupId,
-    )
-    if err != nil {
-        panic(err)
-    }
-    defer rows.Close()
-
-    l := make([]*Service, 0)
-    for rows.Next() {
-        var serviceId int64
-        // TODO: how to convert configJson
-        var configJson string
-        s := new(Service)
-        if err := rows.Scan(
-            &serviceId, &s.Name, &configJson,
-        ); err != nil {
-            panic(err)
-        }
-
-        s.Instances = GetInstancesByServiceId(serviceId)
-
-        l = append(l, s)
-    }
-
-    return l
-}
-
-func (s *Service) Execute(groupId int64) {
-// TODO: how to convert to configJson
-    stmt, err := db.Prepare(`
-        INSERT INTO service(
-            name, groupId, configJson
-        )
-        VALUES(?, ?, ?)
-    `)
-    if err != nil {
-        panic(err)
-    }
-    defer stmt.Close()
-
-    result, err := stmt.Exec(
-        s.Name, groupId, "",
-    )
-    if err != nil {
-        panic(err)
-    }
-
-    serviceId, err := result.LastInsertId()
-    if err != nil {
-        panic(err)
-    }
-
-    for _, i := range s.Instances {
-        i.Execute(serviceId)
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-func GetInstancesByServiceId(serviceId int64) []*Instance {
-    rows, err := db.Query(`
-        SELECT
-            name, nodeId, configJson
-        FROM
-            instance
-        WHERE
-            serviceId = ?
-        `, serviceId,
-    )
-    if err != nil {
-        panic(err)
-    }
-    defer rows.Close()
-
-    l := make([]*Instance, 0)
-    for rows.Next() {
-        var nodeId int64
-        // TODO: how to convert configJson
-        var configJson string
-        i := new(Instance)
-        c := new(Container)
-        if err := rows.Scan(
-            &c.Name, &nodeId, &configJson,
-        ); err != nil {
-            panic(err)
-        }
-
-        i.Node = GetNodeById(nodeId)
-        i.Container = c
-
-        l = append(l, i)
-    }
-
-    return l
-}
-
-func (i *Instance) Execute(serviceId int64) {
-// TODO: how to convert to configJson
-    stmt, err := db.Prepare(`
-        INSERT INTO instance(
-            name, nodeId, status, serviceId, configJson
-        )
-        VALUES(?, ?, ?, ?, ?)
-    `)
-    if err != nil {
-        panic(err)
-    }
-    defer stmt.Close()
-
-    _, err = stmt.Exec(
-        i.Container.Name, i.Node, StatusRaw, serviceId, "",
-    )
-    if err != nil {
+    if _, err := stmt.Exec(g.Id, node.Id); err != nil {
         panic(err)
     }
 }

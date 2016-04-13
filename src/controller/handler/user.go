@@ -88,7 +88,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 
     in := struct {
         Name         string `json:"name"`
-        DisplayName  string `json:"displayName"`
+        DisplayName  string `json:"display_name"`
         Key          string `json:"key"`
         Email        string `json:"email"`
     }{}

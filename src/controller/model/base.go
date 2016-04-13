@@ -84,3 +84,14 @@ func GenerateWhereSql(cs []*Condition) (string, []interface{}) {
 
     return "", nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+func removeElement(s *[]string, e string) {
+    for i := 0; i < len(*s); i++ {
+        if (*s)[i] == e {
+            *s = append((*s)[:i], (*s)[i+1:]...)
+            return
+        }
+    }
+}

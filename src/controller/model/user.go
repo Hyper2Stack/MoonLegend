@@ -7,10 +7,10 @@ import (
 type User struct {
     Id               int64  `json:"id"`
     Name             string `json:"name"`
-    DisplayName      string `json:"displayName"`
+    DisplayName      string `json:"display_name"`
     Key              string `json:"key"`
     Email            string `json:"email"`
-    CreateTime       int64  `json:"createTime"`
+    CreateTime       int64  `json:"create_ts"`
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -20,7 +20,7 @@ func ListUser(cs []*Condition, o *Order, p *Paging) []*User {
         cs = make([]*Condition, 0)
     }
 
-    cs = append(cs, NewCondition("isActive", "=", true))
+    cs = append(cs, NewCondition("is_active", "=", true))
 
     where, vs := GenerateWhereSql(cs)
     order := GenerateOrderSql(o)
@@ -28,7 +28,7 @@ func ListUser(cs []*Condition, o *Order, p *Paging) []*User {
 
     rows, err := db.Query(`
         SELECT
-            id, name, displayName, userKey, email, createTime
+            id, name, display_name, agent_key, email, create_ts
         FROM
             user
         ` + where + order + limit, vs...,
@@ -80,7 +80,7 @@ func GetUserByName(name string) *User {
 func IsAdmin(id int64) bool {
     rows, err := db.Query(`
         SELECT
-            isAdmin
+            is_admin
         FROM
             user
         WHERE
@@ -105,7 +105,7 @@ func IsAdmin(id int64) bool {
 func (u *User) Save() {
     stmt, err := db.Prepare(`
         INSERT INTO user(
-            name, displayName, userKey, email, createTime, isActive
+            name, display_name, agent_key, email, create_ts, is_active
         )
         VALUES(?, ?, ?, ?, ?, true)
     `)
@@ -134,7 +134,7 @@ func (u *User) Update() {
         UPDATE
             user
         SET
-            displayName = ?,
+            display_name = ?,
             email = ?,
         WHERE
             id = ?
@@ -158,7 +158,7 @@ func (u *User) Delete() {
         UPDATE
             user
         SET
-            isActive = false,
+            is_active = false,
         WHERE
             id = ?
     `)
@@ -226,7 +226,7 @@ func (u *User) ResetKey(key string) {
         UPDATE
             user
         SET
-            userKey = ?
+            agent_key = ?
         WHERE
             id = ?
     `)
@@ -247,21 +247,21 @@ func (u *User) ResetKey(key string) {
 
 func (u *User) Repos() []*Repo {
     conditions := make([]*Condition, 0)
-    conditions = append(conditions, NewCondition("owner", "=", u.Id))
+    conditions = append(conditions, NewCondition("owner_id", "=", u.Id))
 
     return ListRepo(conditions, nil, nil)
 }
 
 func (u *User) Nodes() []*Node {
     conditions := make([]*Condition, 0)
-    conditions = append(conditions, NewCondition("owner", "=", u.Id))
+    conditions = append(conditions, NewCondition("owner_id", "=", u.Id))
 
     return ListNode(conditions, nil, nil)
 }
 
 func (u *User) Groups() []*Group {
     conditions := make([]*Condition, 0)
-    conditions = append(conditions, NewCondition("owner", "=", u.Id))
+    conditions = append(conditions, NewCondition("owner_id", "=", u.Id))
 
     return ListGroup(conditions, nil, nil)
 }

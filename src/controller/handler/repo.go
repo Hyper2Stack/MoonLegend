@@ -2,9 +2,9 @@ package handler
 
 import (
     "net/http"
-    "os"
-    "path/filepath"
     "encoding/json"
+
+    "github.com/gorilla/mux"
 
     "controller/model"
 )
@@ -12,19 +12,20 @@ import (
 // GET /api/v1/user/repos
 //
 func ListRepo(w http.ResponseWriter, r *http.Request) {
-    // TODO: convert ymlPath to yml
     json.NewEncoder(w).Encode(LoginUserVars[r].Repos())
 }
 
 // POST /api/v1/user/repos
 //
 func PostRepo(w http.ResponseWriter, r *http.Request) {
-    u := LoginUserVars[r]
+    defer r.Body.Close()
 
+    u := LoginUserVars[r]
     in := struct {
         Name        string `json:"name"`
+        IsPublic    bool   `json:"is_public"`
         Description string `json:"description"`
-        Yml         string `json:"yml"`
+        Readme      string `json:"readme"`
     }{}
 
     if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -37,31 +38,17 @@ func PostRepo(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if model.GetRepoByNameAndOwner(in.Name, u.Id) != nil {
+    if model.GetRepoByNameAndOwnerId(in.Name, u.Id) != nil {
         http.Error(w, DuplicateResource, http.StatusBadRequest)
         return
-    }
-
-    y := filepath.Join(YmlDirBase, u.Name + "_" + in.Name)
-    file, err := os.OpenFile(y, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0660)
-    if err != nil {
-        panic(err)
-    }
-
-    defer func() {
-        r.Body.Close()
-        file.Close()
-    }()
-
-    if _, err = file.WriteString(in.Yml); err != nil {
-        panic(err)
     }
 
     re := new(model.Repo)
     re.Name = in.Name
     re.Description = in.Description
-    re.Owner = u.Id
-    re.YmlPath = y
+    re.IsPublic = in.IsPublic
+    re.Readme = in.Readme
+    re.OwnerId = u.Id
     re.Save()
 
     w.WriteHeader(http.StatusCreated)
@@ -70,17 +57,18 @@ func PostRepo(w http.ResponseWriter, r *http.Request) {
 // GET /api/v1/user/repos/{repo_name}
 //
 func GetRepo(w http.ResponseWriter, r *http.Request) {
-    // TODO: convert ymlPath to yml
     json.NewEncoder(w).Encode(RepoVars[r])
 }
 
 // PUT /api/v1/user/repos/{repo_name}
 //
 func PutRepo(w http.ResponseWriter, r *http.Request) {
+    defer r.Body.Close()
+
     in := struct {
-        Name        string `json:"name"`
+        IsPublic    bool   `json:"is_public"`
         Description string `json:"description"`
-        Yml         string `json:"yml"`
+        Readme      string `json:"readme"`
     }{}
 
     if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -88,34 +76,10 @@ func PutRepo(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if len(in.Name) == 0 {
-        http.Error(w, RequestBodyError, http.StatusBadRequest)
-        return
-    }
-
-   if re := model.GetRepoByNameAndOwner(in.Name, RepoVars[r].Owner); re != nil {
-        http.Error(w, DuplicateResource, http.StatusBadRequest)
-        return
-    }
-
-    file, err := os.OpenFile(RepoVars[r].YmlPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0660)
-    if err != nil {
-        panic(err)
-    }
-
-    defer func() {
-        r.Body.Close()
-        file.Close()
-    }()
-
-    if _, err = file.WriteString(in.Yml); err != nil {
-        panic(err)
-    }
-
-    RepoVars[r].Name = in.Name
+    RepoVars[r].IsPublic = in.IsPublic
     RepoVars[r].Description = in.Description
+    RepoVars[r].Readme = in.Readme
     RepoVars[r].Update()
-
 }
 
 // DELETE /api/v1/user/repos/{repo_name}
@@ -136,7 +100,8 @@ func AddRepoTag(w http.ResponseWriter, r *http.Request) {
     defer r.Body.Close()
 
     in := struct {
-        TagName string `json:"name"`
+        Name string `json:"name"`
+        Yml  string `json:"yml"`
     }{}
 
     if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -144,35 +109,33 @@ func AddRepoTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if len(in.TagName) == 0 {
+    if len(in.Name) == 0 || len(in.Yml) == 0 {
         http.Error(w, RequestBodyError, http.StatusBadRequest)
         return
     }
 
     t := new(model.RepoTag)
-    t.Name   = in.TagName
+    t.Name = in.Name
+    t.Yml = in.Yml
 
     RepoVars[r].AddTag(t)
-
     w.WriteHeader(http.StatusCreated)
 }
 
 // DELETE /api/v1/user/repos/{repo_name}/tags/{tag_name}
 //
 func DeleteRepoTag(w http.ResponseWriter, r *http.Request) {
-    RepoVars[r].RemoveTag(TagVars[r])
+    RepoVars[r].RemoveTag(mux.Vars(r)["tag_name"])
 }
 
 // GET /api/v1/users/{user_name}/repos
 //
 func ListUserRepo(w http.ResponseWriter, r *http.Request) {
-    // TODO: convert ymlPath to yml
     json.NewEncoder(w).Encode(UserVars[r].Repos())
 }
 
 // GET /api/v1/users/{user_name}/repos/{repo_name}
 //
 func GetUserRepo(w http.ResponseWriter, r *http.Request) {
-    // TODO: convert ymlPath to yml
     json.NewEncoder(w).Encode(RepoVars[r])
 }

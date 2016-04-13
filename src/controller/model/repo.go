@@ -5,14 +5,16 @@ import (
 
 type Repo struct {
     Id          int64  `json:"id"`
+    OwnerId     int64  `json:"owner_id"`
     Name        string `json:"name"`
+    IsPublic    bool   `json:"is_public"`
     Description string `json:"description"`
-    Owner       int64  `json:"owner"`
-    YmlPath     string `json:"ymlPath"`
+    Readme      string `json:"readme"`
 }
 
 type RepoTag struct {
     Name   string `json:"name"`
+    Yml    string `json:"yml"`
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,7 +26,7 @@ func ListRepo(cs []*Condition, o *Order, p *Paging) []*Repo {
 
     rows, err := db.Query(`
         SELECT
-            id, name, description, owner, ymlPath
+            id, owner_id, name, is_public, description, readme
         FROM
             repo
         ` + where + order + limit, vs...,
@@ -38,7 +40,7 @@ func ListRepo(cs []*Condition, o *Order, p *Paging) []*Repo {
     for rows.Next() {
         r := new(Repo)
         if err := rows.Scan(
-            &r.Id, &r.Name, &r.Description, &r.Owner, &r.YmlPath,
+            &r.Id, &r.OwnerId, &r.Name, &r.IsPublic, &r.Description, &r.Readme,
         ); err != nil {
             panic(err)
         }
@@ -61,10 +63,10 @@ func GetRepoById(id int64) *Repo {
     return l[0]
 }
 
-func GetRepoByNameAndOwner(name string, owner int64) *Repo {
+func GetRepoByNameAndOwnerId(name string, ownerId int64) *Repo {
     conditions := make([]*Condition, 0)
     conditions = append(conditions, NewCondition("name", "=", name))
-    conditions = append(conditions, NewCondition("owner", "=", owner))
+    conditions = append(conditions, NewCondition("owner_id", "=", ownerId))
 
     l := ListRepo(conditions, nil, nil)
     if len(l) == 0 {
@@ -77,9 +79,9 @@ func GetRepoByNameAndOwner(name string, owner int64) *Repo {
 func (r *Repo) Save() {
     stmt, err := db.Prepare(`
         INSERT INTO repo(
-            name, description, owner, ymlPath
+            owner_id, name, is_public, description, readme
         )
-        VALUES(?, ?, ?, ?)
+        VALUES(?, ?, ?, ?, ?)
     `)
     if err != nil {
         panic(err)
@@ -87,7 +89,7 @@ func (r *Repo) Save() {
     defer stmt.Close()
 
     result, err := stmt.Exec(
-        r.Name, r.Description, r.Owner, r.YmlPath,
+        r.OwnerId, r.Name, r.IsPublic, r.Description, r.Readme,
     )
     if err != nil {
         panic(err)
@@ -105,7 +107,9 @@ func (r *Repo) Update() {
             repo
         SET
             name = ?,
+            is_public = ?,
             description = ?,
+            readme = ?
         WHERE
             id = ?
     `)
@@ -115,7 +119,7 @@ func (r *Repo) Update() {
     defer stmt.Close()
 
     if _, err := stmt.Exec(
-        r.Name, r.Description, r.Id,
+        r.Name, r.IsPublic, r.Description, r.Readme, r.Id,
     ); err != nil {
         panic(err)
     }
@@ -143,11 +147,11 @@ func (r *Repo) Delete() {
 func (r *Repo) Tags() []*RepoTag {
     rows, err := db.Query(`
         SELECT
-            name
+            name, yml
         FROM
             repoTag
         WHERE
-            repoId =  ?
+            repo_id =  ?
         `, r.Id,
     )
     if err != nil {
@@ -159,7 +163,7 @@ func (r *Repo) Tags() []*RepoTag {
     for rows.Next() {
         t := new(RepoTag)
         if err := rows.Scan(
-            &t.Name,
+            &t.Name, &t.Yml,
         ); err != nil {
             panic(err)
         }
@@ -173,9 +177,9 @@ func (r *Repo) Tags() []*RepoTag {
 func (r *Repo) AddTag(t *RepoTag) {
     stmt, err := db.Prepare(`
         INSERT INTO repoTag(
-            repoId, name
+            repo_id, name, yml
         )
-        VALUES(?, ?)
+        VALUES(?, ?, ?)
     `)
     if err != nil {
         panic(err)
@@ -183,7 +187,7 @@ func (r *Repo) AddTag(t *RepoTag) {
     defer stmt.Close()
 
     _, err = stmt.Exec(
-        r.Id, t.Name,
+        r.Id, t.Name, t.Yml,
     )
     if err != nil {
         panic(err)
@@ -195,7 +199,7 @@ func (r *Repo) RemoveTag(name string) {
         DELETE FROM
             repoTag
         WHERE
-            repoId = ? and name = ?
+            repo_id = ? and name = ?
     `)
     if err != nil {
         panic(err)

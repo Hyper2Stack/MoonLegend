@@ -35,7 +35,7 @@ func PostGroup(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if model.GetGroupByNameAndOwner(in.Name, u.Id) != nil {
+    if model.GetGroupByNameAndOwnerId(in.Name, u.Id) != nil {
         http.Error(w, DuplicateResource, http.StatusBadRequest)
         return
     }
@@ -43,7 +43,7 @@ func PostGroup(w http.ResponseWriter, r *http.Request) {
     g := new(model.Group)
     g.Name = in.Name
     g.Description = in.Description
-    g.Owner = u.Id
+    g.OwnerId = u.Id
     g.Status = model.StatusRaw
     g.Save()
 
@@ -76,7 +76,7 @@ func PutGroup(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-   if re := model.GetGroupByNameAndOwner(in.Name, GroupVars[r].Owner); re != nil {
+   if re := model.GetGroupByNameAndOwnerId(in.Name, GroupVars[r].OwnerId); re != nil {
         http.Error(w, DuplicateResource, http.StatusBadRequest)
         return
     }
@@ -96,7 +96,7 @@ func DeleteGroup(w http.ResponseWriter, r *http.Request) {
 // GET /api/v1/user/groups/{group_name}/nodes
 //
 func ListGroupNode(w http.ResponseWriter, r *http.Request) {
-    json.NewEncoder(w).Encode(GroupVars[r].Nodes)
+    json.NewEncoder(w).Encode(GroupVars[r].Nodes())
 }
 
 // POST /api/v1/user/groups/{group_name}/nodes
@@ -118,21 +118,20 @@ func AddGroupNode(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    n := model.GetNodeByNameAndOwner(in.Name, LoginUserVars[r].Id)
+    n := model.GetNodeByNameAndOwnerId(in.Name, LoginUserVars[r].Id)
     if n == nil {
         http.Error(w, RequestBodyError, http.StatusBadRequest)
         return
     }
 
-    GroupVars[r].AddMembership(n.Id)
-
+    GroupVars[r].AddNode(n)
     w.WriteHeader(http.StatusCreated)
 }
 
 // DELETE /api/v1/user/groups/{group_name}/nodes/{node_name}
 //
 func DeleteGroupNode(w http.ResponseWriter, r *http.Request) {
-    GroupVars[r].DeleteMembership(NodeVars[r].Id)
+    GroupVars[r].DeleteNode(NodeVars[r])
 }
 
 // GET /api/v1/user/groups/{group_name}/deployment
@@ -143,11 +142,11 @@ func GetDeployment(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/v1/user/groups/{group_name}/deployment
 //
-func AddDeployment(w http.ResponseWriter, r *http.Request) {
+func PostDeployment(w http.ResponseWriter, r *http.Request) {
     defer r.Body.Close()
 
     in := struct {
-        RepoName string `json:"name"`
+        Repo string `json:"repo"`
     }{}
 
     if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -155,42 +154,46 @@ func AddDeployment(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if GroupVars[r].Deployment != nil {
-        GroupVars[r].DeleteDeployment()
+    if GroupVars[r].Status != model.StatusRaw {
+        http.Error(w, GroupBusy, http.StatusBadRequest)
+        return
     }
 
-    if len(in.RepoName) != 0 {
-        re := model.GetRepoByNameAndOwner(in.RepoName, LoginUserVars[r].Id)
-        if re == nil {
-            http.Error(w, RequestBodyError, http.StatusBadRequest)
-            return
-        }
-        if err := GroupVars[r].ParseYml(re.YmlPath); err == nil {
-            panic("Invalid yml config")
-        }
-        GroupVars[r].Deployment.RepoName = in.RepoName
-    }
+    // construct Deployment
+    // TBD
+    w.WriteHeader(http.StatusCreated)
 }
 
-// PUT /api/v1/user/groups/{group_name}/deployment/execute
+// PUT /api/v1/user/groups/{group_name}/deployment/prepare
 //
-func ExecuteDeployment(w http.ResponseWriter, r *http.Request) {
-    if GroupVars[r].Deployment == nil {
+func Prepare(w http.ResponseWriter, r *http.Request) {
+    if GroupVars[r].Status != model.StatusCreated {
         http.Error(w, InvalidOperation, http.StatusBadRequest)
         return
     }
 
-    re := model.GetRepoByNameAndOwner(GroupVars[r].Deployment.RepoName, LoginUserVars[r].Id)
-    if re == nil {
-        http.Error(w, RequestBodyError, http.StatusBadRequest)
+    // TBD
+}
+
+// PUT /api/v1/user/groups/{group_name}/deployment/execute
+//
+func Deploy(w http.ResponseWriter, r *http.Request) {
+    if GroupVars[r].Status == model.StatusPrepared {
+        http.Error(w, InvalidOperation, http.StatusBadRequest)
         return
     }
 
-    GroupVars[r].Execute(re.Id)
+    // TBD
+}
+
+// GET /api/v1/user/groups/{group_name}/deployment/process
+//
+func GetProcess(w http.ResponseWriter, r *http.Request) {
+    // TBD
 }
 
 // DELETE /api/v1/user/groups/{group_name}/deployment
 //
 func DeleteDeployment(w http.ResponseWriter, r *http.Request) {
-    GroupVars[r].DeleteDeployment()
+    // TBD
 }

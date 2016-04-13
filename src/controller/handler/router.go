@@ -36,28 +36,18 @@ var routes = []Route{
 
     Route{"GET",    "/api/v1/user/repos/{repo_name}/tags",            wrapper(authWrapper(repoWrapper(ListRepoTag)))},
     Route{"POST",   "/api/v1/user/repos/{repo_name}/tags",            wrapper(authWrapper(repoWrapper(AddRepoTag)))},
-    Route{"DELETE", "/api/v1/user/repos/{repo_name}/tags/{tag_name}", wrapper(authWrapper(repoWrapper(tagWrapper(DeleteRepoTag))))},
+    Route{"DELETE", "/api/v1/user/repos/{repo_name}/tags/{tag_name}", wrapper(authWrapper(repoWrapper(DeleteRepoTag)))},
 
     // node
     Route{"GET",    "/api/v1/user/nodes",             wrapper(authWrapper(ListNode))},
-    Route{"POST",   "/api/v1/user/nodes",             wrapper(authWrapper(PostNode))},
     Route{"GET",    "/api/v1/user/nodes/{node_name}", wrapper(authWrapper(nodeWrapper(GetNode)))},
     Route{"PUT",    "/api/v1/user/nodes/{node_name}", wrapper(authWrapper(nodeWrapper(PutNode)))},
     Route{"DELETE", "/api/v1/user/nodes/{node_name}", wrapper(authWrapper(nodeWrapper(DeleteNode)))},
 
-    Route{"GET",    "/api/v1/user/nodes/{node_name}/tags",            wrapper(authWrapper(nodeWrapper(ListNodeTag)))},
     Route{"POST",   "/api/v1/user/nodes/{node_name}/tags",            wrapper(authWrapper(nodeWrapper(AddNodeTag)))},
-    Route{"DELETE", "/api/v1/user/nodes/{node_name}/tags/{tag_name}", wrapper(authWrapper(nodeWrapper(tagWrapper(DeleteNodeTag))))},
-
-    Route{"GET",    "/api/v1/user/nodes/{node_name}/nics",            wrapper(authWrapper(nodeWrapper(ListNic)))},
-    Route{"POST",   "/api/v1/user/nodes/{node_name}/nics",            wrapper(authWrapper(nodeWrapper(PostNic)))},
-    Route{"GET",    "/api/v1/user/nodes/{node_name}/nics/{nic_name}", wrapper(authWrapper(nodeWrapper(nicWrapper(GetNic))))},
-    Route{"PUT",    "/api/v1/user/nodes/{node_name}/nics/{nic_name}", wrapper(authWrapper(nodeWrapper(nicWrapper(PutNic))))},
-    Route{"DELETE", "/api/v1/user/nodes/{node_name}/nics/{nic_name}", wrapper(authWrapper(nodeWrapper(nicWrapper(DeleteNic))))},
-
-    Route{"GET",    "/api/v1/user/nodes/{node_name}/nics/{nic_name}/tags",            wrapper(authWrapper(nodeWrapper(nicWrapper(ListNicTag))))},
-    Route{"POST",   "/api/v1/user/nodes/{node_name}/nics/{nic_name}/tags",            wrapper(authWrapper(nodeWrapper(nicWrapper(AddNicTag))))},
-    Route{"DELETE", "/api/v1/user/nodes/{node_name}/nics/{nic_name}/tags/{tag_name}", wrapper(authWrapper(nodeWrapper(nicWrapper(tagWrapper(DeleteNicTag)))))},
+    Route{"DELETE", "/api/v1/user/nodes/{node_name}/tags/{tag_name}", wrapper(authWrapper(nodeWrapper(DeleteNodeTag)))},
+    Route{"POST",   "/api/v1/user/nodes/{node_name}/nics/{nic_name}/tags",            wrapper(authWrapper(nodeWrapper(AddNicTag)))},
+    Route{"DELETE", "/api/v1/user/nodes/{node_name}/nics/{nic_name}/tags/{tag_name}", wrapper(authWrapper(nodeWrapper(DeleteNicTag)))},
 
     // group
     Route{"GET",    "/api/v1/user/groups",              wrapper(authWrapper(ListGroup))},
@@ -72,8 +62,10 @@ var routes = []Route{
 
     // deployment
     Route{"GET",    "/api/v1/user/groups/{group_name}/deployment",         wrapper(authWrapper(groupWrapper(GetDeployment)))},
-    Route{"POST",   "/api/v1/user/groups/{group_name}/deployment",         wrapper(authWrapper(groupWrapper(AddDeployment)))},
-    Route{"PUT",    "/api/v1/user/groups/{group_name}/deployment/execute", wrapper(authWrapper(groupWrapper(ExecuteDeployment)))},
+    Route{"POST",   "/api/v1/user/groups/{group_name}/deployment",         wrapper(authWrapper(groupWrapper(PostDeployment)))},
+    Route{"PUT",    "/api/v1/user/groups/{group_name}/deployment/prepare", wrapper(authWrapper(groupWrapper(Prepare)))},
+    Route{"PUT",    "/api/v1/user/groups/{group_name}/deployment/execute", wrapper(authWrapper(groupWrapper(Deploy)))},
+    Route{"GET",    "/api/v1/user/groups/{group_name}/deployment/process", wrapper(authWrapper(groupWrapper(GetProcess)))},
     Route{"DELETE", "/api/v1/user/groups/{group_name}/deployment",         wrapper(authWrapper(groupWrapper(DeleteDeployment)))},
 
     // admin
