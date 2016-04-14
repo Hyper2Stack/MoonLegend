@@ -7,6 +7,32 @@ import (
     "controller/model"
 )
 
+// POST /api/v1/signup
+//
+func Signup(w http.ResponseWriter, r *http.Request) {
+    defer r.Body.Close()
+
+    in := struct {
+        Username string `json:"username"`
+        Password string `json:"password"`
+        Email    string `json:"email"`
+    }{}
+
+    if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+        http.Error(w, RequestBodyDecodeError, http.StatusBadRequest)
+        return
+    }
+
+    // TBD, should verify username & password
+
+    u := new(model.User)
+    u.Name = in.Username
+    u.Email = in.Email
+    u.Save()
+
+    u.ResetPassword(hashPassword(in.Password))
+}
+
 // POST /api/v1/login
 //
 func Login(w http.ResponseWriter, r *http.Request) {
@@ -74,41 +100,4 @@ func ResetKey(w http.ResponseWriter, r *http.Request) {
     }
 
     LoginUserVars[r].ResetKey(in.Key)
-}
-
-// GET /api/v1/users/{user_name}
-//
-func GetUserProfile(w http.ResponseWriter, r *http.Request) {
-    json.NewEncoder(w).Encode(UserVars[r])
-}
-
-// POST /api/v1/user
-func AddUser(w http.ResponseWriter, r *http.Request) {
-    defer r.Body.Close()
-
-    in := struct {
-        Name         string `json:"name"`
-        DisplayName  string `json:"display_name"`
-        Key          string `json:"key"`
-        Email        string `json:"email"`
-    }{}
-
-    if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-        http.Error(w, RequestBodyDecodeError, http.StatusBadRequest)
-        return
-    }
-
-    if len(in.Name) == 0 {
-        http.Error(w, RequestBodyError, http.StatusBadRequest)
-        return
-    }
-
-    u := new(model.User)
-    u.Name = in.Name
-    u.DisplayName = in.DisplayName
-    u.Key = in.Key
-    u.Email = in.Email
-    u.Save()
-
-    w.WriteHeader(http.StatusCreated)
 }

@@ -21,6 +21,7 @@ var routes = []Route{
 
     // login
     Route{"POST",   "/api/v1/login",               wrapper(Login)},
+    Route{"POST",   "/api/v1/signup",              wrapper(Signup)},
 
     // user
     Route{"GET",    "/api/v1/user",                wrapper(authWrapper(GetMyProfile))},
@@ -68,14 +69,10 @@ var routes = []Route{
     Route{"GET",    "/api/v1/user/groups/{group_name}/deployment/process", wrapper(authWrapper(groupWrapper(GetProcess)))},
     Route{"DELETE", "/api/v1/user/groups/{group_name}/deployment",         wrapper(authWrapper(groupWrapper(DeleteDeployment)))},
 
-    // admin
-    Route{"POST",   "/api/v1/user",                                wrapper(authWrapper(adminWrapper(AddUser)))},
-    Route{"GET",    "/api/v1/users/{user_name}",                   wrapper(authWrapper(adminWrapper(userWrapper(GetUserProfile))))},
-    Route{"GET",    "/api/v1/users/{user_name}/repos",             wrapper(authWrapper(adminWrapper(userWrapper(ListUserRepo))))},
-    // TODO: Wrappers order dependency???
-    Route{"GET",    "/api/v1/users/{user_name}/repos/{repo_name}", wrapper(authWrapper(adminWrapper(userWrapper(repoWrapper(GetUserRepo)))))},
-
-    // TODO: how to add admin user???
+    // repo
+    Route{"GET",   "/api/v1/repos/{namespace}/{name}",            wrapper(authWrapper(globalRepoWrapper(GetGlobalRepo)))},
+    Route{"GET",   "/api/v1/repos/{namespace}/{name}/tags",       wrapper(authWrapper(globalRepoWrapper(ListGlobalRepoTag)))},
+    Route{"GET",   "/api/v1/repos/{namespace}/{name}/tags/{tag}", wrapper(authWrapper(globalRepoWrapper(GetGlobalRepoTag)))},
 }
 
 type InnerResponseWriter struct {
