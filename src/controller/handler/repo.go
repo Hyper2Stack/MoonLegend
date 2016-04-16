@@ -128,14 +128,20 @@ func DeleteRepoTag(w http.ResponseWriter, r *http.Request) {
     RepoVars[r].RemoveTag(mux.Vars(r)["tag_name"])
 }
 
-// GET /api/v1/users/{user_name}/repos
+// GET /api/v1/repos/{namespace}/{name}
 //
-func ListUserRepo(w http.ResponseWriter, r *http.Request) {
-    json.NewEncoder(w).Encode(UserVars[r].Repos())
+func GetGlobalRepo(w http.ResponseWriter, r *http.Request) {
+    // TBD
 }
 
-// GET /api/v1/users/{user_name}/repos/{repo_name}
+// GET /api/v1/repos/{namespace}/{name}/tags
 //
-func GetUserRepo(w http.ResponseWriter, r *http.Request) {
-    json.NewEncoder(w).Encode(RepoVars[r])
+func ListGlobalRepoTag(w http.ResponseWriter, r *http.Request) {
+    // TBD
+}
+
+// GET /api/v1/repos/{namespace}/{name}/tags/{tag}
+//
+func GetGlobalRepoTag(w http.ResponseWriter, r *http.Request) {
+    // TBD
 }
