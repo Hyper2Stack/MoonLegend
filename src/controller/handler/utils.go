@@ -1,8 +1,6 @@
 package handler
 
 import (
-    "path/filepath"
-
     "github.com/op/go-logging"
 )
 
@@ -27,14 +25,4 @@ func decodeUserToken(key string) (string, bool) {
     // TBD
     // username, expiered
     return key, true
-}
-
-func hashPassword(password string) string {
-    // TBD
-    return password
-}
-
-func absCleanPath(path string) string {
-    absPath, _ := filepath.Abs(path)
-    return filepath.Clean(absPath)
 }

@@ -174,7 +174,7 @@ func (u *User) Delete() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-func (u *User) GetPassword() string {
+func (u *User) VerifyPassword(password string) bool {
     rows, err := db.Query(`
         SELECT
             password
@@ -196,10 +196,10 @@ func (u *User) GetPassword() string {
         }
     }
 
-    return hp
+    return hashPassword(password) == hp
 }
 
-func (u *User) ResetPassword(hashedPasswd string) {
+func (u *User) ResetPassword(password string) {
     stmt, err := db.Prepare(`
         UPDATE
             user
@@ -214,14 +214,14 @@ func (u *User) ResetPassword(hashedPasswd string) {
     defer stmt.Close()
 
     if _, err := stmt.Exec(
-        hashedPasswd,
+        hashPassword(password),
         u.Id,
     ); err != nil {
         panic(err)
     }
 }
 
-func (u *User) ResetKey(key string) {
+func (u *User) ResetKey() {
     stmt, err := db.Prepare(`
         UPDATE
             user
@@ -236,7 +236,7 @@ func (u *User) ResetKey(key string) {
     defer stmt.Close()
 
     if _, err := stmt.Exec(
-        key,
+        generateKey(),
         u.Id,
     ); err != nil {
         panic(err)

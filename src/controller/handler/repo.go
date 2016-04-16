@@ -117,8 +117,8 @@ func AddRepoTag(w http.ResponseWriter, r *http.Request) {
     t := new(model.RepoTag)
     t.Name = in.Name
     t.Yml = in.Yml
-
     RepoVars[r].AddTag(t)
+
     w.WriteHeader(http.StatusCreated)
 }
 
