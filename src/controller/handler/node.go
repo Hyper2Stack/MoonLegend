@@ -29,7 +29,6 @@ func PutNode(w http.ResponseWriter, r *http.Request) {
     in := struct {
         Name        string `json:"name"`
         Description string `json:"description"`
-        Status      string `json:"status"`
     }{}
 
     if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -42,14 +41,13 @@ func PutNode(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if re := model.GetNodeByNameAndOwnerId(in.Name, NodeVars[r].OwnerId); re != nil {
+    if model.GetNodeByNameAndOwnerId(in.Name, NodeVars[r].OwnerId) != nil {
         http.Error(w, DuplicateResource, http.StatusBadRequest)
         return
     }
 
     NodeVars[r].Name = in.Name
     NodeVars[r].Description = in.Description
-    NodeVars[r].Status = in.Status
     NodeVars[r].Update()
 }
 

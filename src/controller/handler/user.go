@@ -30,7 +30,7 @@ func Signup(w http.ResponseWriter, r *http.Request) {
     u.Email = in.Email
     u.Save()
 
-    u.ResetPassword(hashPassword(in.Password))
+    u.ResetPassword(in.Password)
 }
 
 // POST /api/v1/login
@@ -49,7 +49,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
     }
 
     u := model.GetUserByName(in.Username)
-    if u == nil || u.GetPassword() != hashPassword(in.Password) {
+    if u == nil || !u.VerifyPassword(in.Password) {
         w.WriteHeader(http.StatusUnauthorized)
         return
     }
@@ -82,22 +82,13 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    LoginUserVars[r].ResetPassword(hashPassword(in.Password))
+    // TBD, should verify password
+
+    LoginUserVars[r].ResetPassword(in.Password)
 }
 
 // PUT /api/v1/user/reset-key
 //
 func ResetKey(w http.ResponseWriter, r *http.Request) {
-    defer r.Body.Close()
-
-    in := struct {
-        Key string `json:"key"`
-    }{}
-
-    if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-        http.Error(w, RequestBodyDecodeError, http.StatusBadRequest)
-        return
-    }
-
-    LoginUserVars[r].ResetKey(in.Key)
+    LoginUserVars[r].ResetKey()
 }

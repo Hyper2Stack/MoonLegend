@@ -95,3 +95,13 @@ func removeElement(s *[]string, e string) {
         }
     }
 }
+
+func hashPassword(password string) string {
+    // TBD
+    return password
+}
+
+func generateKey() string {
+    // TBD
+    return ""
+}

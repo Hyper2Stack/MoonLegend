@@ -18,8 +18,6 @@ func ListGroup(w http.ResponseWriter, r *http.Request) {
 func PostGroup(w http.ResponseWriter, r *http.Request) {
     defer r.Body.Close()
 
-    u := LoginUserVars[r]
-
     in := struct {
         Name        string `json:"name"`
         Description string `json:"description"`
@@ -35,6 +33,7 @@ func PostGroup(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    u := LoginUserVars[r]
     if model.GetGroupByNameAndOwnerId(in.Name, u.Id) != nil {
         http.Error(w, DuplicateResource, http.StatusBadRequest)
         return
@@ -76,7 +75,7 @@ func PutGroup(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-   if re := model.GetGroupByNameAndOwnerId(in.Name, GroupVars[r].OwnerId); re != nil {
+    if model.GetGroupByNameAndOwnerId(in.Name, GroupVars[r].OwnerId) != nil {
         http.Error(w, DuplicateResource, http.StatusBadRequest)
         return
     }
@@ -84,7 +83,6 @@ func PutGroup(w http.ResponseWriter, r *http.Request) {
     GroupVars[r].Name = in.Name
     GroupVars[r].Description = in.Description
     GroupVars[r].Update()
-
 }
 
 // DELETE /api/v1/user/groups/{group_name}
