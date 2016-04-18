@@ -73,6 +73,9 @@ var routes = []Route{
     Route{"GET",   "/api/v1/repos/{namespace}/{name}",            wrapper(authWrapper(globalRepoWrapper(GetGlobalRepo)))},
     Route{"GET",   "/api/v1/repos/{namespace}/{name}/tags",       wrapper(authWrapper(globalRepoWrapper(ListGlobalRepoTag)))},
     Route{"GET",   "/api/v1/repos/{namespace}/{name}/tags/{tag}", wrapper(authWrapper(globalRepoWrapper(GetGlobalRepoTag)))},
+
+    // agent
+    Route{"GET", "/api/v1/agent", ConnectAgent},
 }
 
 type InnerResponseWriter struct {
