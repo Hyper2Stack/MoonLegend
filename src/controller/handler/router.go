@@ -7,6 +7,7 @@ import (
     "time"
 
     "github.com/gorilla/mux"
+    "github.com/gorilla/websocket"
 )
 
 type Route struct {
@@ -14,6 +15,8 @@ type Route struct {
     Pattern     string
     HandlerFunc http.HandlerFunc
 }
+
+var websocketUpgrader = websocket.Upgrader{}
 
 var routes = []Route{
     // ping
@@ -121,6 +124,42 @@ func wrapper(inner http.HandlerFunc) http.HandlerFunc {
         }()
 
         inner.ServeHTTP(wr, r)
+    })
+}
+
+func wrapperWS(inner func (string, int, []byte) ([]byte, error)) http.HandlerFunc {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        userKey := mux.Vars(r)["user_key"]
+        c, err := websocketUpgrader.Upgrade(w, r, nil)
+        if err != nil {
+            log.Errorf("Wrapper WEBSOCKET %s %s", r.RequestURI, "upgrade failed")
+            return
+        }
+        s := time.Now()
+        defer func() {
+            c.Close()
+            d := time.Now().Sub(s)
+            log.Infof("Wrapper WEBSOCKET %s %s(lasted=%s)", r.RequestURI, "closed", d.String())
+        }()
+        log.Infof("Wrapper WEBSOCKET %s %s", r.RequestURI, "connected")
+
+        for {
+            mT, m, err := c.ReadMessage()
+            if err != nil {
+                log.Errorf("Wrapper WEBSOCKET READ %s %s", r.RequestURI, err.Error())
+                break
+            }
+            log.Debugf("Wrapper WEBSOCKET %s %d %s", r.RequestURI, mT, m)
+            m, err = inner(userKey, mT, m)
+            if err != nil {
+                break
+            }
+            err = c.WriteMessage(mT, m)
+            if err != nil {
+                log.Errorf("Wrapper WEBSOCKET WRITE %s %s", r.RequestURI, err.Error())
+                break
+            }
+        }
     })
 }
 
