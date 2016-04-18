@@ -12,7 +12,7 @@ import (
 type Route struct {
     Method      string
     Pattern     string
-    HandlerFunc http.HandlerFunc
+    Handler     interface{}
 }
 
 var routes = []Route{
@@ -73,6 +73,9 @@ var routes = []Route{
     Route{"GET",   "/api/v1/repos/{namespace}/{name}",            wrapper(authWrapper(globalRepoWrapper(GetGlobalRepo)))},
     Route{"GET",   "/api/v1/repos/{namespace}/{name}/tags",       wrapper(authWrapper(globalRepoWrapper(ListGlobalRepoTag)))},
     Route{"GET",   "/api/v1/repos/{namespace}/{name}/tags/{tag}", wrapper(authWrapper(globalRepoWrapper(GetGlobalRepoTag)))},
+
+    // agent
+    Route{"WEBSOCKET", "/api/v1/agent/{user_key}", WsWrapper(AgentHandler)},
 }
 
 type InnerResponseWriter struct {
@@ -123,7 +126,11 @@ func wrapper(inner http.HandlerFunc) http.HandlerFunc {
 func NewRouter() *mux.Router {
     router := mux.NewRouter()
     for _, route := range routes {
-        router.Methods(route.Method).Path(route.Pattern).HandlerFunc(route.HandlerFunc)
+        if route.Method == "WEBSOCKET" {
+            router.Handle(route.Pattern, route.Handler.(http.Handler))
+            continue
+        }
+        router.Methods(route.Method).Path(route.Pattern).HandlerFunc(route.Handler.(http.HandlerFunc))
     }
 
     return router
