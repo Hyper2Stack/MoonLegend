@@ -1,0 +1,119 @@
+<html>
+<head>
+<title>MoonLegend</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> 
+<link rel="stylesheet" type="text/css" href="css/bootstrap-3.3.6.min.css" />
+</head>
+<body>
+<style type="text/css">
+.tab-body {
+  border: 1px solid #ddd;
+  border-top-color: transparent;
+}
+.tab-init {
+  display: table;
+  text-align: center;
+  height: 80px;
+  width: 100%;
+}
+.text-middle {
+  display: table-cell;
+  vertical-align: middle;
+  color: #777;
+}
+.app-header {
+  margin-top:15px;
+  height: 80px;
+}
+.app-icon {
+  margin: 0 10px 0 10px;
+  width: 50px;
+  height: 50px;
+}
+.app-title {
+  font-size: 25px;
+}
+.item-repo, .item-group, .item-host {
+  border-top: 1px solid #bbb;
+  border-bottom: 1px solid #bbb;
+  border-right: 1px solid #bbb;
+  border-left: 5px solid #bbb;
+  margin: 10px 20px 10px 20px;
+  padding: 10px;
+}
+.repo-icon, .group-icon, .host-icon {
+  margin: 2px 10px 2px 2px;
+  width:36px;
+  height:36px;
+}
+</style>
+<div class="container-fluid"> <!-- main -->
+ <div class="app-header"> <!-- header -->
+  <img class="app-icon pull-left" src="img/empty.png" />
+  <span class="app-title">MoonLegend</span>
+ </div>
+ <div>
+  <ul class="nav nav-tabs">
+    <li class="active"><a data-link="repo">应用仓库</a></li>
+    <li><a data-link="host">部署设施</a></li>
+  </ul>
+  <div class="tab-body container-fluid" data-tab="repo"> <!-- app repo -->
+    <div class="tab-init">
+      <span class="text-middle">仓库空旷一片，到这里 <a class="btn btn-success">创建</a> 一个应用。</span>
+    </div>
+    <div class="tab-repos">
+      <h4>应用</h4>
+      <a class="btn btn-default">创建</a>
+      <div class="item-repo row">
+        <img class="repo-icon pull-left" src="img/empty.png" />
+        <div class="clear">
+          应用名称
+          <span class="pull-right">
+           <span class="glyphicon glyphicon-star"><span><span class="badge">0</span>
+           <span class="glyphicon glyphicon-console"><span><span class="badge">0</span>
+         </span>
+        </div>
+        <div>应用的简单描述</div>
+      </div>
+    </div>
+  </div>
+  <div class="tab-body container-fluid" data-tab="host"> <!-- host -->
+    <div class="tab-init">
+      <span class="text-middle">没有检测到设施，看一看如何 <a class="btn btn-primary">接入</a> 一个设施。</span>
+    </div>
+    <div class="tab-groups">
+      <h4>主机组</h4>
+      <a class="btn btn-default">创建</a>
+      <div class="item-group row">
+        <img class="group-icon pull-left" src="img/empty.png" />
+        <div class="clear">主机组名称</div>
+        <div>主机组的简单描述</div>
+      </div>
+    </div>
+    <div class="tab-hosts">
+      <h4>主机</h4>
+      <a class="btn btn-default">接入</a>
+      <div class="item-host row">
+        <img class="host-icon pull-left" src="img/empty.png" />
+        <div class="clear">主机名称</div>
+        <div>主机的简单描述</div>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<script type="text/javascript" src="js/jquery-1.12.1.min.js"></script>
+<script type="text/javascript">
+var data = JSON.parse('{}');
+</script>
+<script type="text/javascript">
+$('.nav-tabs a').click(function (e) {
+  $('.nav-tabs li').removeClass('active');
+  $(e.target).parent().addClass('active');
+  $('.tab-body').addClass('hide');
+  $('.tab-body[data-tab=' + $(e.target).attr('data-link') + ']').removeClass('hide');
+});
+</script>
+</body>
+</html>
