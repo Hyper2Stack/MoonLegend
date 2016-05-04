@@ -1,0 +1,86 @@
+## Exmaple 1*nginx + n*web + 1*mysql
+
+# nginx will provide external service on outer network,
+# talking with internal services on inner network
+infrastructure:
+  network:
+  - outer
+  - inner
+
+services:
+  nginx:
+    image: daocloud.io/nginx:1.9
+    singleton: true               # service force to deploy only 1 instance
+    ports:
+    - 80/tcp
+    config_file:
+      path: /etc/nginx/nginx.conf
+      mode: 644
+      content: >
+        http {
+          upstream web {
+            {{range $instance := .Service("web").Instances()}}
+            server {{$instance.Node().Network("inner").Address()}}:{{$instance.Entrypoint("80/tcp").HostPort()}};
+            {{end}}
+          }
+          server{ 
+            location / { 
+              proxy_pass         http://web; 
+              proxy_set_header   Host             $host; 
+              proxy_set_header   X-Real-IP        $remote_addr; 
+              proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for; 
+            } 
+          }
+        }
+    networks:
+    - outer
+    - inner
+
+  web:
+    image: daocloud.io/web:1.0
+    ports:
+    - 80/tcp
+    config_file:
+      path: /web/web.yml
+      mode: 644
+      content: > 
+        log_level: info
+        database:
+          db: {{.Runtime.Env.MysqlDatabaseName}}
+          host: {{.Service("mysql").Singoleton().Node().Network("inner").Address()}}
+          port: {{.Service("mysql").Singoleton().Entrypoint("3306/tcp").HostPort()}}
+          user: root
+          password: {{.Runtime.Env.MysqlRootPassword}}
+    networks:
+    - inner
+    depends_on:
+    - mysql
+
+  mysql:
+    image: daocloud.io/mysql:5.5
+    singleton: true
+    ports:
+    - 3306/tcp
+    environment:
+    - MYSQL_ROOT_PASSWORD={{.Runtime.Env.MysqlRootPassword}}
+    - MYSQL_DATABASE={{.Runtime.Env.MysqlDatabaseName}}
+    volumes:
+    - "/data:/data"
+    networks:
+    - inner
+
+# default runtime settings, values can be overrode by user while deploying
+runtime:
+  # env must be set if there are undefined env vars above
+  env:
+  - MysqlRootPassword=hw*2+seven
+  - MysqlDatabaseName=test
+  global_policy:
+    restart: true
+    port_mapping: fixed         # fixed/random/customized, fixed means container_port=host_port
+                                # supporting other policies is possible, such as spread policy
+  services:
+    web:
+      instance: 3
+      port_mapping: random
+      port_range: 10001-10009
