@@ -17,7 +17,7 @@ type Node struct {
 
 type Nic struct {
     Name    string   `json:"name"`
-    Ip4Addr string   `json:"ip"`
+    Ip4Addr string   `json:"ip4addr"`
     Tags    []string `json:"tags"`
 }
 
@@ -81,6 +81,18 @@ func GetNodeByNameAndOwnerId(name string, ownerId int64) *Node {
     conditions := make([]*Condition, 0)
     conditions = append(conditions, NewCondition("name", "=", name))
     conditions = append(conditions, NewCondition("owner_id", "=", ownerId))
+
+    l := ListNode(conditions, nil, nil)
+    if len(l) == 0 {
+        return nil
+    }
+
+    return l[0]
+}
+
+func GetNodeByUuid(uuid string) *Node {
+    conditions := make([]*Condition, 0)
+    conditions = append(conditions, NewCondition("uuid", "=", uuid))
 
     l := ListNode(conditions, nil, nil)
     if len(l) == 0 {
