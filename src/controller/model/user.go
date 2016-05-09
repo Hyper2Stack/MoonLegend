@@ -77,6 +77,18 @@ func GetUserByName(name string) *User {
     return l[0]
 }
 
+func GetUserByAgentkey(key string) *User {
+    conditions := make([]*Condition, 0)
+    conditions = append(conditions, NewCondition("agent_key", "=", key))
+
+    l := ListUser(conditions, nil, nil)
+    if len(l) == 0 {
+        return nil
+    }
+
+    return l[0]
+}
+
 func IsAdmin(id int64) bool {
     rows, err := db.Query(`
         SELECT

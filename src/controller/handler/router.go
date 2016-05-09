@@ -75,7 +75,8 @@ var routes = []Route{
     Route{"GET",   "/api/v1/repos/{namespace}/{name}/tags/{tag}", wrapper(authWrapper(globalRepoWrapper(GetGlobalRepoTag)))},
 
     // agent
-    Route{"GET", "/api/v1/agent", ConnectAgent},
+    Route{"GET",   "/api/v1/agent", ConnectAgent},
+    Route{"PUT",   "/api/v1/user/test", authWrapper(MockExec)},
 }
 
 type InnerResponseWriter struct {

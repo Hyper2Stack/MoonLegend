@@ -3,6 +3,7 @@ package handler
 import (
     "encoding/json"
     "net/http"
+    "io/ioutil"
 
     "controller/model"
 )
@@ -176,7 +177,7 @@ func Prepare(w http.ResponseWriter, r *http.Request) {
 // PUT /api/v1/user/groups/{group_name}/deployment/execute
 //
 func Deploy(w http.ResponseWriter, r *http.Request) {
-    if GroupVars[r].Status == model.StatusPrepared {
+    if GroupVars[r].Status != model.StatusPrepared {
         http.Error(w, InvalidOperation, http.StatusBadRequest)
         return
     }
@@ -194,4 +195,24 @@ func GetProcess(w http.ResponseWriter, r *http.Request) {
 //
 func DeleteDeployment(w http.ResponseWriter, r *http.Request) {
     // TBD
+}
+
+// PUT /api/v1/user/test
+//
+func MockExec(w http.ResponseWriter, r *http.Request) {
+    // test code
+    for _, node := range LoginUserVars[r].Nodes() {
+        connid := makeConnId(LoginUserVars[r].Key, node.Uuid)
+        cmds, err := ioutil.ReadAll(r.Body)
+        if err != nil {
+            http.Error(w, RequestBodyError, http.StatusBadRequest)
+            return
+        }
+        wsConns[connid].Send <- cmds
+        if <- wsConns[connid].Done != StatusOK {
+            // roll back
+            http.Error(w, "fail to deploy", http.StatusBadRequest)
+            return
+        }
+    }
 }
