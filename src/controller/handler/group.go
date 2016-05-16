@@ -1,10 +1,14 @@
 package handler
 
 import (
+    "bytes"
     "encoding/json"
     "net/http"
     "io/ioutil"
+    "strings"
+    "text/template"
 
+    "gopkg.in/yaml.v2"
     "controller/model"
 )
 
@@ -146,6 +150,7 @@ func PostDeployment(w http.ResponseWriter, r *http.Request) {
 
     in := struct {
         Repo string `json:"repo"`
+        Tag  string `json:"tag"`
     }{}
 
     if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -158,9 +163,49 @@ func PostDeployment(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // construct Deployment
-    // TBD
+    ss := strings.Split(in.Repo, "/")
+    if len(ss) != 2 {
+        http.Error(w, RequestBodyError, http.StatusBadRequest)
+        return
+    }
+
+    namespace := ss[0]
+    name := ss[1]
+
+    // TBD, check if namespace/name exists
+    // TBD, check if current user has deloy permission
+    // TBD, check if tag exists
+
+    repo := model.GetRepoByNameAndOwnerId(name, model.GetUserByName(namespace).Id)
+    repoTag := repo.GetTag(name)
+
+    d := construct([]byte(repoTag.Yml), GroupVars[r])
+    rederedYml := render(d, repoTag.Yml)
+    d = construct(rederedYml, GroupVars[r])
+
+    GroupVars[r].Deployment = d
+    GroupVars[r].Status = model.StatusCreated
+    GroupVars[r].Update()
+
     w.WriteHeader(http.StatusCreated)
+}
+
+func construct(y []byte, g *model.Group) *model.Deployment {
+    yml := new(Yml)
+    if err := yaml.Unmarshal(y, yml); err != nil {
+        panic(err)
+        return nil
+    }
+
+    // TBD
+    return nil
+}
+
+func render(d *model.Deployment, yml string) []byte {
+    var b bytes.Buffer
+    t, _ := template.New("").Parse(yml)
+    t.Execute(&b, d)
+    return b.Bytes()
 }
 
 // PUT /api/v1/user/groups/{group_name}/deployment/prepare
@@ -171,7 +216,18 @@ func Prepare(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // TBD
+    go prepare(GroupVars[r])
+}
+
+func prepare(group *model.Group) {
+    group.Status = model.StatusPreparing
+    group.Update()
+
+    // TBD pull docker images
+    // possible error
+
+    group.Status = model.StatusPrepared
+    group.Update()
 }
 
 // PUT /api/v1/user/groups/{group_name}/deployment/execute
@@ -182,7 +238,18 @@ func Deploy(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // TBD
+    go deploy(GroupVars[r])
+}
+
+func deploy(group *model.Group) {
+    group.Status = model.StatusDeploying
+    group.Update()
+
+    // TBD pull docker images
+    // possible error, roll back
+
+    group.Status = model.StatusDeployed
+    group.Update()
 }
 
 // GET /api/v1/user/groups/{group_name}/deployment/process

@@ -46,11 +46,11 @@ services:
       content: > 
         log_level: info
         database:
-          db: {{.Runtime.Env.MysqlDatabaseName}}
+          db: {{.Runtime.Env("MysqlDatabaseName")}}
           host: {{.Service("mysql").Singoleton().Node().Network("inner").Address()}}
           port: {{.Service("mysql").Singoleton().Entrypoint("3306/tcp").HostPort()}}
           user: root
-          password: {{.Runtime.Env.MysqlRootPassword}}
+          password: {{.Runtime.Env("MysqlRootPassword")}}
     networks:
     - inner
     depends_on:
@@ -62,8 +62,8 @@ services:
     ports:
     - 3306/tcp
     environment:
-    - MYSQL_ROOT_PASSWORD={{.Runtime.Env.MysqlRootPassword}}
-    - MYSQL_DATABASE={{.Runtime.Env.MysqlDatabaseName}}
+    - MYSQL_ROOT_PASSWORD={{.Runtime.Env("MysqlRootPassword")}}
+    - MYSQL_DATABASE={{.Runtime.Env("MysqlDatabaseName")}}
     volumes:
     - "/data:/data"
     networks:

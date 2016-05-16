@@ -26,13 +26,13 @@ type Deployment struct {
 }
 
 type Service struct {
-    Image      string      `json:"image"`
-    Depends    []string    `json:"depends"`
-    Instances  []*Instance `json:"instance"`
+    Image        string      `json:"image"`
+    Depends      []string    `json:"depends"`
+    InstanceList []*Instance `json:"instance_list"`
 }
 
 type Instance struct {
-    Node        *Node         `json:"node"`
+    Host        *Node         `json:"Host"`
     Container   *Container    `json:"container"`
     Entrypoints []*Entrypoint `json:"entrypoints"`
 }
@@ -57,6 +57,7 @@ const (
     StatusPrepared     = "prepared"
     StatusDeploying    = "deploying"
     StatusDeployed     = "deployed"
+    StatusError        = "error"
 )
 
 ////////////////////////////////////////////////////////////////////////////////

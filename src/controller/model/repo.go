@@ -174,6 +174,16 @@ func (r *Repo) Tags() []*RepoTag {
     return l
 }
 
+func (r *Repo) GetTag(name string) *RepoTag {
+    for _, t := range r.Tags() {
+        if t.Name == name {
+            return t
+        }
+    }
+
+    return nil
+}
+
 func (r *Repo) AddTag(t *RepoTag) {
     stmt, err := db.Prepare(`
         INSERT INTO repoTag(
