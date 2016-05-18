@@ -90,6 +90,19 @@ func GetNodeByNameAndOwnerId(name string, ownerId int64) *Node {
     return l[0]
 }
 
+func GetNodeByUuidAndOwnerId(uuid string, ownerId int64) *Node {
+    conditions := make([]*Condition, 0)
+    conditions = append(conditions, NewCondition("uuid", "=", uuid))
+    conditions = append(conditions, NewCondition("owner_id", "=", ownerId))
+
+    l := ListNode(conditions, nil, nil)
+    if len(l) == 0 {
+        return nil
+    }
+
+    return l[0]
+}
+
 func GetNodeByUuid(uuid string) *Node {
     conditions := make([]*Condition, 0)
     conditions = append(conditions, NewCondition("uuid", "=", uuid))
