@@ -76,7 +76,7 @@ var routes = []Route{
 
     // agent
     Route{"GET",   "/api/v1/agent", ConnectAgent},
-    Route{"PUT",   "/api/v1/user/test", authWrapper(MockExec)},
+    Route{"PUT",   "/api/v1/debug-agent/{uuid}/{action}", DebugAgent},
 }
 
 type InnerResponseWriter struct {

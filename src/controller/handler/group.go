@@ -4,7 +4,6 @@ import (
     "bytes"
     "encoding/json"
     "net/http"
-    "io/ioutil"
     "strings"
     "text/template"
 
@@ -262,24 +261,4 @@ func GetProcess(w http.ResponseWriter, r *http.Request) {
 //
 func DeleteDeployment(w http.ResponseWriter, r *http.Request) {
     // TBD
-}
-
-// PUT /api/v1/user/test
-//
-func MockExec(w http.ResponseWriter, r *http.Request) {
-    // test code
-    for _, node := range LoginUserVars[r].Nodes() {
-        connid := makeConnId(LoginUserVars[r].Key, node.Uuid)
-        cmds, err := ioutil.ReadAll(r.Body)
-        if err != nil {
-            http.Error(w, RequestBodyError, http.StatusBadRequest)
-            return
-        }
-        wsConns[connid].Send <- cmds
-        if <- wsConns[connid].Done != StatusOK {
-            // roll back
-            http.Error(w, "fail to deploy", http.StatusBadRequest)
-            return
-        }
-    }
 }

@@ -9,10 +9,9 @@ key="abc"
 ROOT_DIR=$(readlink -f $(dirname $0)/..)
 
 mysql -u${mysql_username} -p${mysql_password} -e "create database if not exists moonlegend default character set utf8 collate utf8_general_ci;"
-sed -e "s/root:root/${mysql_username}:${mysql_password}/g" ${ROOT_DIR}/config/moonlegend.json
+sed -e "s/root:root/${mysql_username}:${mysql_password}/g" ${ROOT_DIR}/config/moonlegend.json > /tmp/moonlegend.json
 
-cd $ROOT_DIR
-./moonlegend &
+${ROOT_DIR}/bin/moonlegend -conf /tmp/moonlegend.json &
 
 sleep 5
 
