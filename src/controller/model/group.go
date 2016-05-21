@@ -2,6 +2,9 @@ package model
 
 import (
     "encoding/json"
+    "strings"
+
+    "controller/model/yml"
 )
 
 type Group struct {
@@ -15,26 +18,32 @@ type Group struct {
 }
 
 type InstanceStatus struct {
-    Service  string `json:"service"`
-    Instance string `json:"instance"`
-    Status   string `json:"status"`
+    Service string `json:"service"`
+    Name    string `json:"name"`
+    Status  string `json:"status"`
 }
 
 type Deployment struct {
-    Repo       string               `json:"repo"`
-    Services   map[string]*Service  `json:"services"`
+    Repo         string       `json:"repo"`
+    Runtime      *yml.Runtime `json:"runtime"`
+    InstanceList []*Instance  `json:"instance_list"`
 }
 
 type Service struct {
-    Image        string      `json:"image"`
-    Depends      []string    `json:"depends"`
-    InstanceList []*Instance `json:"instance_list"`
+    Name     string      `json:"name"`
+    Image    string      `json:"image"`
+    Networks []string    `json:"networks"`
+    Depends  []string    `json:"depends_on"`
 }
 
 type Instance struct {
     Host        *Node         `json:"Host"`
-    Container   *Container    `json:"container"`
+    Service     *Service      `json:"service"`
+    Name        string        `json:"name"`
+    RunCommand  string        `json:"run_command"`
+    RmCommand   string        `json:"rm_command"`
     Entrypoints []*Entrypoint `json:"entrypoints"`
+    Config      *yml.Config   `json:"config"`
 }
 
 type Entrypoint struct {
@@ -42,12 +51,6 @@ type Entrypoint struct {
     ListeningAddr string `json:"listening_addr"`
     ListeningPort string `json:"listening_port"`
     ContainerPort string `json:"container_port"`
-}
-
-type Container struct {
-    Name         string `json:"name"`
-    RunCommand   string `json:"run_command"`
-    RmCommand    string `json:"rm_command"`
 }
 
 const (
@@ -293,4 +296,68 @@ func (g *Group) DeleteNode(node *Node) {
     if _, err := stmt.Exec(g.Id, node.Id); err != nil {
         panic(err)
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+func (g *Group) InitDeployment(rtag *RepoTag) error {
+    // TBD
+    return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+func (d *Deployment) Instances(service string) []*Instance {
+    result := make([]*Instance, 0)
+    for _, i := range d.InstanceList {
+        if i.Service != nil && i.Service.Name == service {
+            result = append(result, i)
+        }
+    }
+
+    return result
+}
+
+func (d *Deployment) Singleton(service string) *Instance {
+    result := d.Instances(service)
+    if len(result) != 1 {
+        return nil
+    }
+
+    return result[0]
+}
+
+func (i *Instance) AddressOf(network string) string {
+    for _, nic := range i.Host.Nics {
+        for _, tag := range nic.Tags {
+            if tag == network {
+                return nic.Ip4Addr
+            }
+        }
+    }
+
+    return ""
+}
+
+func (i *Instance) Address() string {
+    return i.AddressOf(i.Service.Networks[0])
+}
+
+func (i *Instance) PortOf(port string) string {
+    ss := strings.Split(port , "/")
+    for _, ep := range i.Entrypoints {
+        if ss[0] != ep.ContainerPort {
+            continue
+        }
+
+        if len(ss) == 1 || ss[1] == ep.Protocol {
+            return ep.ListeningPort
+        }
+    }
+
+    return ""
+}
+
+func (i *Instance) Port() string {
+    return i.Entrypoints[0].ListeningPort
 }

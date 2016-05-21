@@ -9,6 +9,7 @@ import (
 
     "gopkg.in/yaml.v2"
     "controller/model"
+    "controller/model/yml"
 )
 
 // GET /api/v1/user/groups
@@ -171,9 +172,8 @@ func PostDeployment(w http.ResponseWriter, r *http.Request) {
     namespace := ss[0]
     name := ss[1]
 
-    // TBD, check if namespace/name exists
+    // TBD, check if namespace/name:tag exists
     // TBD, check if current user has deloy permission
-    // TBD, check if tag exists
 
     repo := model.GetRepoByNameAndOwnerId(name, model.GetUserByName(namespace).Id)
     repoTag := repo.GetTag(name)
@@ -190,10 +190,9 @@ func PostDeployment(w http.ResponseWriter, r *http.Request) {
 }
 
 func construct(y []byte, g *model.Group) *model.Deployment {
-    yml := new(Yml)
+    yml := new(yml.Yml)
     if err := yaml.Unmarshal(y, yml); err != nil {
         panic(err)
-        return nil
     }
 
     // TBD

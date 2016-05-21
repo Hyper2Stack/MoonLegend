@@ -1,6 +1,5 @@
 #!/bin/bash
 
-image="daocloud.io/nginx:1.9"
 uuid=`cat /etc/moon/key.cfg | python -m json.tool | grep "uuid" | sed "s/\"$//g" | sed "s/^.*\"//g"`
 
 curl -H "Authorization:test" -XPUT 127.0.0.1:8080/api/v1/debug-agent/${uuid}/ping
