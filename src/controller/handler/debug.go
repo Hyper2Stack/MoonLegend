@@ -7,6 +7,7 @@ import (
     "github.com/gorilla/mux"
 
     "controller/agent"
+    "controller/model"
 )
 
 // PUT /api/v1/debug-agent/{uuid}/{action}
@@ -41,7 +42,7 @@ func DebugAgent(w http.ResponseWriter, r *http.Request) {
         }
         json.NewEncoder(w).Encode(info)
     case agent.ActionExecShell:
-        script := new(agent.ScriptJob)
+        script := new(model.ScriptJob)
         if err := json.NewDecoder(r.Body).Decode(script); err != nil {
             http.Error(w, "Decode json error", http.StatusBadRequest)
             return

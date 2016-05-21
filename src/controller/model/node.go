@@ -235,3 +235,27 @@ func (n *Node) RemoveNicTag(nicName, t string) {
 
     n.Update()
 }
+
+func (n *Node) HasTag(tag string) bool {
+    return containElement(n.Tags, tag)
+}
+
+func (n *Node) HasNic(nicName string) bool {
+    for _, nic := range n.Nics {
+        if nic.Name == nicName {
+            return true
+        }
+    }
+
+    return false
+}
+
+func (n *Node) HasNics(nicNames []string) bool {
+    for _, name := range nicNames {
+        if !n.HasNic(name) {
+            return false
+        }
+    }
+
+    return true
+}

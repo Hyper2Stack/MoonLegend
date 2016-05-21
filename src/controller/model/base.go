@@ -96,6 +96,16 @@ func removeElement(s *[]string, e string) {
     }
 }
 
+func containElement(arr []string, e string) bool {
+    for _, s := range arr {
+        if s == e {
+            return true
+        }
+    }
+
+    return false
+}
+
 func hashPassword(password string) string {
     // TBD
     return password

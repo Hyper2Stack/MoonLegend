@@ -4,6 +4,14 @@ import (
     "strings"
 )
 
+const (
+    RestartAlways         = "always"
+    RestartNo             = "no"
+    FixedPortMapping      = "fix"
+    RandomPortMapping     = "random"
+    CustomizedPortMapping = "customized"
+)
+
 type Yml struct {
     Infra    *Infra              `yaml:"infrastructure"`
     Services map[string]*Service `yaml:"services"`
@@ -15,13 +23,14 @@ type Infra struct {
 }
 
 type Service struct {
-    Image     string   `yaml:"image"`
-    Singleton bool     `yaml:"singleton"`
-    Ports     []string `yaml:"ports"`
-    Config    *Config  `yaml:"config_file"`
-    Networks  []string `yaml:"networks"`
-    Volumes   []string `yaml:"volumes"`
-    Depends   []string `yaml:"depends_on"`
+    Image       string   `yaml:"image"`
+    Singleton   bool     `yaml:"singleton"`
+    Ports       []string `yaml:"ports"`
+    Config      *Config  `yaml:"config_file"`
+    Networks    []string `yaml:"networks"`
+    Volumes     []string `yaml:"volumes"`
+    Depends     []string `yaml:"depends_on"`
+    Environment []string `yaml:"environment"`
 }
 
 type Config struct {
@@ -37,12 +46,13 @@ type Runtime struct {
 }
 
 type GlobalPolicy struct {
-    Restart     bool   `yaml:"restart" json:"restart"`
+    Restart     string `yaml:"restart" json:"restart"`
     PortMapping string `yaml:"port_mapping" json:"port_mapping"`
 }
 
 type ServicePolicy struct {
-    Instance    int    `yaml:"instance" json:"instance"`
+    Restart     string `yaml:"restart" json:"restart"`
+    InstanceNum int    `yaml:"instance_num" json:"instance_num"`
     PortMapping string `yaml:"port_mapping" json:"port_mapping"`
     PortRange   string `yaml:"port_range" json:"port_range"`
 }
@@ -56,4 +66,33 @@ func (r *Runtime) Env(name string) string {
     }
 
     return ""
+}
+
+func (r *Runtime) GetPolicy(service string) *ServicePolicy {
+    sp := r.ServicePolicy[service]
+    if sp == nil {
+        sp = new(ServicePolicy)
+    }
+
+    if sp.Restart == "" {
+        if r.GlobalPolicy != nil && r.GlobalPolicy.Restart != "" {
+            sp.Restart = r.GlobalPolicy.Restart
+        } else {
+            sp.Restart = RestartNo
+        }
+    }
+
+    if sp.InstanceNum == 0 {
+        sp.InstanceNum = 1
+    }
+
+    if sp.PortMapping == "" {
+        if r.GlobalPolicy != nil && r.GlobalPolicy.PortMapping != "" {
+            sp.PortMapping = r.GlobalPolicy.PortMapping
+        } else {
+            sp.PortMapping = FixedPortMapping
+        }
+    }
+
+    return sp
 }

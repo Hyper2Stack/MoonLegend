@@ -28,11 +28,11 @@ runtime:
   - MysqlRootPassword=hw*2+seven
   - MysqlDatabaseName=test
   global_policy:
-    restart: true
+    restart: always
     port_mapping: fixed
   services:
     web:
-      instance: 1
+      instance_num: 1
 
 ## Example 1*nginx + n*web + 1*mysql
 
@@ -112,11 +112,11 @@ runtime:
   - MysqlRootPassword=hw*2+seven
   - MysqlDatabaseName=test
   global_policy:
-    restart: true
+    restart: no
     port_mapping: fixed         # fixed/random/customized, fixed means container_port=host_port
                                 # supporting other policies is possible, such as spread policy
   services:
     web:
-      instance: 3
+      instance_num: 3
       port_mapping: random
       port_range: 10001-10009

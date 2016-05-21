@@ -277,3 +277,11 @@ func (u *User) Groups() []*Group {
 
     return ListGroup(conditions, nil, nil)
 }
+
+func (u *User) HasRepo(repo *Repo) bool {
+    return repo.OwnerId == u.Id
+}
+
+func (u *User) CanDeploy(repo *Repo) bool {
+    return repo.OwnerId == u.Id || repo.IsPublic
+}

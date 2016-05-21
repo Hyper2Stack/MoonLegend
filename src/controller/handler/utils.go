@@ -9,7 +9,6 @@ const (
     RequestBodyError       = "invalid request body field"
     DuplicateResource      = "duplicate resource"
     InvalidOperation       = "invalid operation"
-    GroupBusy              = "group busy"
 
     TokenExpireTime = 3600000
 )

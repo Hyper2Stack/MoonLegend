@@ -1,13 +1,9 @@
 package handler
 
 import (
-    "bytes"
     "encoding/json"
     "net/http"
-    "strings"
-    "text/template"
 
-    "gopkg.in/yaml.v2"
     "controller/model"
     "controller/model/yml"
 )
@@ -149,8 +145,8 @@ func PostDeployment(w http.ResponseWriter, r *http.Request) {
     defer r.Body.Close()
 
     in := struct {
-        Repo string `json:"repo"`
-        Tag  string `json:"tag"`
+        Repo    string       `json:"repo"`
+        Runtime *yml.Runtime `json:"runtime"`
     }{}
 
     if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -158,52 +154,18 @@ func PostDeployment(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if GroupVars[r].Status != model.StatusRaw {
-        http.Error(w, GroupBusy, http.StatusBadRequest)
+    repo, repoTag := model.ParseRepoString(in.Repo)
+    if repo == nil || repoTag == nil || !LoginUserVars[r].CanDeploy(repo) {
+        w.WriteHeader(http.StatusForbidden)
         return
     }
 
-    ss := strings.Split(in.Repo, "/")
-    if len(ss) != 2 {
-        http.Error(w, RequestBodyError, http.StatusBadRequest)
+    if err := GroupVars[r].InitDeployment(repo, repoTag, in.Runtime); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
-
-    namespace := ss[0]
-    name := ss[1]
-
-    // TBD, check if namespace/name:tag exists
-    // TBD, check if current user has deloy permission
-
-    repo := model.GetRepoByNameAndOwnerId(name, model.GetUserByName(namespace).Id)
-    repoTag := repo.GetTag(name)
-
-    d := construct([]byte(repoTag.Yml), GroupVars[r])
-    rederedYml := render(d, repoTag.Yml)
-    d = construct(rederedYml, GroupVars[r])
-
-    GroupVars[r].Deployment = d
-    GroupVars[r].Status = model.StatusCreated
-    GroupVars[r].Update()
 
     w.WriteHeader(http.StatusCreated)
-}
-
-func construct(y []byte, g *model.Group) *model.Deployment {
-    yml := new(yml.Yml)
-    if err := yaml.Unmarshal(y, yml); err != nil {
-        panic(err)
-    }
-
-    // TBD
-    return nil
-}
-
-func render(d *model.Deployment, yml string) []byte {
-    var b bytes.Buffer
-    t, _ := template.New("").Parse(yml)
-    t.Execute(&b, d)
-    return b.Bytes()
 }
 
 // PUT /api/v1/user/groups/{group_name}/deployment/prepare
