@@ -42,7 +42,7 @@ type Config struct {
 type Runtime struct {
     Environment   []string                  `yaml:"env" json:"env"`
     GlobalPolicy  *GlobalPolicy             `yaml:"global_policy" json:"global_policy"`
-    ServicePolicy map[string]*ServicePolicy `yaml:"services" json:"services"`
+    ServicePolicy map[string]*ServicePolicy `yaml:"service_policy" json:"service_policy"`
 }
 
 type GlobalPolicy struct {

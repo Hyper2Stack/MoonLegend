@@ -30,7 +30,7 @@ runtime:
   global_policy:
     restart: always
     port_mapping: fixed
-  services:
+  service_policy:
     web:
       instance_num: 1
 
@@ -115,7 +115,7 @@ runtime:
     restart: no
     port_mapping: fixed         # fixed/random/customized, fixed means container_port=host_port
                                 # supporting other policies is possible, such as spread policy
-  services:
+  service_policy:
     web:
       instance_num: 3
       port_mapping: random
