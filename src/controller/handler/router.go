@@ -37,6 +37,7 @@ var routes = []Route{
 
     Route{"GET",    "/api/v1/user/repos/{repo_name}/tags",            wrapper(authWrapper(repoWrapper(ListRepoTag)))},
     Route{"POST",   "/api/v1/user/repos/{repo_name}/tags",            wrapper(authWrapper(repoWrapper(AddRepoTag)))},
+    Route{"GET",    "/api/v1/user/repos/{repo_name}/tags/{tag_name}", wrapper(authWrapper(repoWrapper(GetRepoTag)))},
     Route{"DELETE", "/api/v1/user/repos/{repo_name}/tags/{tag_name}", wrapper(authWrapper(repoWrapper(DeleteRepoTag)))},
 
     // node

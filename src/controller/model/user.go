@@ -127,7 +127,7 @@ func (u *User) Save() {
     defer stmt.Close()
 
     u.CreateTime = time.Now().UTC().Unix()
-
+    u.Key = generateKey()
     result, err := stmt.Exec(
         u.Name, u.DisplayName, u.Key, u.Email, u.CreateTime,
     )

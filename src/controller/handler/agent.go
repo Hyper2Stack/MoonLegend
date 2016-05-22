@@ -1,6 +1,7 @@
 package handler
 
 import (
+    "fmt"
     "net/http"
     "time"
     "strings"
@@ -58,7 +59,10 @@ func ConnectAgent(w http.ResponseWriter, r *http.Request) {
         node.Uuid = auth[1]
         node.OwnerId = u.Id
         node.Name = ni.Hostname
-        node.Description = u.Name + "'s host: " + ni.Hostname
+        if model.GetNodeByNameAndOwnerId(ni.Hostname, u.Id) != nil {
+            node.Name = fmt.Sprintf("%s_%s", ni.Hostname, auth[1])
+        }
+        node.Description = fmt.Sprintf("%s's host: %s", u.Name, ni.Hostname)
         node.Nics = ni.Nics
         node.Save()
     }

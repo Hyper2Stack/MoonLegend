@@ -39,7 +39,7 @@ func PostRepo(w http.ResponseWriter, r *http.Request) {
     }
 
     if model.GetRepoByNameAndOwnerId(in.Name, u.Id) != nil {
-        http.Error(w, DuplicateResource, http.StatusBadRequest)
+        w.WriteHeader(http.StatusConflict)
         return
     }
 
@@ -114,12 +114,23 @@ func AddRepoTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    if RepoVars[r].GetTag(in.Name) != nil {
+        w.WriteHeader(http.StatusConflict)
+        return
+    }
+
     t := new(model.RepoTag)
     t.Name = in.Name
     t.Yml = in.Yml
     RepoVars[r].AddTag(t)
 
     w.WriteHeader(http.StatusCreated)
+}
+
+// GET /api/v1/user/repos/{repo_name}/tags/{tag_name}
+//
+func GetRepoTag(w http.ResponseWriter, r *http.Request) {
+    json.NewEncoder(w).Encode(RepoVars[r].GetTag(mux.Vars(r)["tag_name"]))
 }
 
 // DELETE /api/v1/user/repos/{repo_name}/tags/{tag_name}

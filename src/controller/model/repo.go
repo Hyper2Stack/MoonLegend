@@ -235,6 +235,7 @@ func (r *Repo) RemoveTag(name string) {
 ////////////////////////////////////////////////////////////////////////////////
 
 func ParseRepoString(s string) (*Repo, *RepoTag) {
+    // s --> "namespace/name:tag"
     ss := strings.SplitN(s, "/", 2)
     if len(ss) != 2 {
         return nil, nil

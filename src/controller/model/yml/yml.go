@@ -7,7 +7,7 @@ import (
 const (
     RestartAlways         = "always"
     RestartNo             = "no"
-    FixedPortMapping      = "fix"
+    FixedPortMapping      = "fixed"
     RandomPortMapping     = "random"
     CustomizedPortMapping = "customized"
 )
@@ -69,9 +69,9 @@ func (r *Runtime) Env(name string) string {
 }
 
 func (r *Runtime) GetPolicy(service string) *ServicePolicy {
-    sp := r.ServicePolicy[service]
-    if sp == nil {
-        sp = new(ServicePolicy)
+    sp := new(ServicePolicy)
+    if p := r.ServicePolicy[service]; p != nil {
+        *sp = *p
     }
 
     if sp.Restart == "" {

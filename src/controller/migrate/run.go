@@ -10,6 +10,7 @@ func Run(uri string) error {
     migration.DefaultSetVersion = SetVersion
     var migrations = []migration.Migrator{
         Migrate_1,
+        Migrate_2,
     }
 
     db, err := migration.Open("mysql", uri, migrations)

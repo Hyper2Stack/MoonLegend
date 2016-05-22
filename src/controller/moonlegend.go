@@ -95,6 +95,11 @@ func main() {
         os.Exit(1)
     }
 
+    if err := handler.Initialize(); err != nil {
+        log.Error("Init handler failed: " + err.Error())
+        os.Exit(1)
+    }
+
     if err := migrate.Run(config.Db.Endpoint); err != nil {
         log.Error("Schema migration failed: " + err.Error())
         os.Exit(1)

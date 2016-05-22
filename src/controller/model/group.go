@@ -42,7 +42,7 @@ type Service struct {
 }
 
 type Instance struct {
-    Host            *Node         `json:"Host"`
+    Host            *Node         `json:"host"`
     Service         *Service      `json:"service"`
     Name            string        `json:"name"`
     PrepareCommand  *ScriptJob    `json:"prepare_commands"`
@@ -279,6 +279,16 @@ func (g *Group) Nodes() []*Node {
     return l
 }
 
+func (g *Group) HasNode(node *Node) bool {
+    for _, n := range g.Nodes() {
+        if n.Uuid == node.Uuid {
+            return true
+        }
+    }
+
+    return false
+}
+
 func (g *Group) AddNode(node *Node) {
     stmt, err := db.Prepare(`
         INSERT INTO nodeMembership(
@@ -373,6 +383,8 @@ func (g *Group) InitDeployment(repo *Repo, tag *RepoTag, runtime *yml.Runtime) e
                 }
                 ins.Entrypoints = append(ins.Entrypoints, ep)
             }
+
+            instances = append(instances, ins)
         }
 
         if err := g.mappingNodeAndPort(instances, ds, d.Runtime); err != nil {
@@ -401,7 +413,7 @@ func (g *Group) InitDeployment(repo *Repo, tag *RepoTag, runtime *yml.Runtime) e
 func (g *Group) FindNodeByService(s *Service) []*Node {
     result := make([]*Node, 0)
     for _, node := range g.Nodes() {
-        if node.HasTag(s.Name) && node.HasNics(s.Networks) {
+        if node.HasTag(s.Name) && node.HasNicTags(s.Networks) {
             result = append(result, node)
         }
     }
@@ -428,7 +440,7 @@ func (g *Group) mappingNodeAndPort(instances []*Instance, service *Service, runt
 }
 
 func fixedMapping(instances []*Instance, nodes []*Node) error {
-    if len(nodes) > len(instances) {
+    if len(nodes) < len(instances) {
         return fmt.Errorf("fixed port mapping, node num < instance num, %d < %d", len(nodes), len(instances))
     }
 
@@ -455,16 +467,25 @@ func customMapping(instances []*Instance, nodes []*Node, portRange string) error
 
 func (d *Deployment) Render() error {
     for _, ins := range d.InstanceList {
-        var err error
-        if ins.Config.Content, err = d.render(ins.Config.Content); err != nil {
-            return err
-        }
-
-        for i := 0; i < len(ins.Env); i++ {
-            if ins.Env[i], err = d.render(ins.Env[i]); err != nil {
+        // Config & Env will be rendered, so every instance should have a copy of these two fields
+        if ins.Config != nil {
+            c := *ins.Config
+            var err error
+            if c.Content, err = d.render(ins.Config.Content); err != nil {
                 return err
             }
+            ins.Config = &c
         }
+
+        env := make([]string, 0)
+        for _, e := range ins.Env {
+            s, err := d.render(e)
+            if err != nil {
+                return err
+            }
+            env = append(env, s)
+        }
+        ins.Env = env
     }
 
     return nil
@@ -494,6 +515,7 @@ func (d *Deployment) InitDeployCmd() {
 }
 
 func (ins *Instance) initPrepareCmd() {
+    ins.PrepareCommand = new(ScriptJob)
     if ins.Config != nil {
         // TBD, support config file
     }
@@ -506,6 +528,7 @@ func (ins *Instance) initPrepareCmd() {
 }
 
 func (ins *Instance) initRunCmd(runtime *yml.Runtime) {
+    ins.RunCommand = new(ScriptJob)
     command := new(ShellCommand)
     command.Command = "docker"
     command.Restrict = true
@@ -539,6 +562,7 @@ func (ins *Instance) initRunCmd(runtime *yml.Runtime) {
 }
 
 func (ins *Instance) initRmCmd() {
+    ins.RmCommand = new(ScriptJob)
     command := new(ShellCommand)
     command.Command = "docker"
     command.Restrict = false
@@ -547,11 +571,12 @@ func (ins *Instance) initRmCmd() {
 }
 
 func (ins *Instance) initRestartCmd() {
+    ins.RestartCommand = new(ScriptJob)
     command := new(ShellCommand)
     command.Command = "docker"
     command.Restrict = true
     command.Args = []string{"restart", ins.Name}
-    ins.RmCommand.Commands = append(ins.RmCommand.Commands, command)
+    ins.RestartCommand.Commands = append(ins.RmCommand.Commands, command)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

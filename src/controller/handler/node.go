@@ -42,7 +42,7 @@ func PutNode(w http.ResponseWriter, r *http.Request) {
     }
 
     if model.GetNodeByNameAndOwnerId(in.Name, NodeVars[r].OwnerId) != nil {
-        http.Error(w, DuplicateResource, http.StatusBadRequest)
+        w.WriteHeader(http.StatusConflict)
         return
     }
 
@@ -76,6 +76,11 @@ func AddNodeTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    if NodeVars[r].HasTag(in.Name) {
+        w.WriteHeader(http.StatusConflict)
+        return
+    }
+
     NodeVars[r].AddTag(in.Name)
     w.WriteHeader(http.StatusCreated)
 }
@@ -89,6 +94,13 @@ func DeleteNodeTag(w http.ResponseWriter, r *http.Request) {
 // POST /api/v1/user/nodes/{node_name}/nics/{nic_name}/tags
 //
 func AddNicTag(w http.ResponseWriter, r *http.Request) {
+    nicName := mux.Vars(r)["nic_name"]
+    nic := NodeVars[r].GetNic(nicName)
+    if nic == nil {
+        w.WriteHeader(http.StatusNotFound)
+        return
+    }
+
     defer r.Body.Close()
 
     in := struct {
@@ -105,7 +117,12 @@ func AddNicTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    NodeVars[r].AddNicTag(mux.Vars(r)["nic_name"], in.Name)
+    if nic.HasTag(in.Name) {
+        w.WriteHeader(http.StatusConflict)
+        return
+    }
+
+    NodeVars[r].AddNicTag(nicName, in.Name)
     w.WriteHeader(http.StatusCreated)
 }
 

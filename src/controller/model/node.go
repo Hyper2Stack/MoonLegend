@@ -65,18 +65,6 @@ func ListNode(cs []*Condition, o *Order, p *Paging) []*Node {
     return l
 }
 
-func GetNodeById(id int64) *Node {
-    conditions := make([]*Condition, 0)
-    conditions = append(conditions, NewCondition("id", "=", id))
-
-    l := ListNode(conditions, nil, nil)
-    if len(l) == 0 {
-        return nil
-    }
-
-    return l[0]
-}
-
 func GetNodeByNameAndOwnerId(name string, ownerId int64) *Node {
     conditions := make([]*Condition, 0)
     conditions = append(conditions, NewCondition("name", "=", name))
@@ -236,23 +224,37 @@ func (n *Node) RemoveNicTag(nicName, t string) {
     n.Update()
 }
 
+func (n *Node) GetNic(nicName string) *Nic {
+    for _, nic := range n.Nics {
+        if nic.Name == nicName {
+            return nic
+        }
+    }
+
+    return nil
+}
+
 func (n *Node) HasTag(tag string) bool {
     return containElement(n.Tags, tag)
 }
 
-func (n *Node) HasNic(nicName string) bool {
+func (n *Node) FindNicByTag(tagName string) *Nic {
     for _, nic := range n.Nics {
-        if nic.Name == nicName {
-            return true
+        if nic.HasTag(tagName) {
+            return nic
         }
     }
 
-    return false
+    return nil
 }
 
-func (n *Node) HasNics(nicNames []string) bool {
-    for _, name := range nicNames {
-        if !n.HasNic(name) {
+func (nic *Nic) HasTag(tag string) bool {
+    return containElement(nic.Tags, tag)
+}
+
+func (n *Node) HasNicTags(tags []string) bool {
+    for _, tag := range tags {
+        if n.FindNicByTag(tag) == nil {
             return false
         }
     }

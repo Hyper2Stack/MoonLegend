@@ -36,7 +36,7 @@ func PostGroup(w http.ResponseWriter, r *http.Request) {
 
     u := LoginUserVars[r]
     if model.GetGroupByNameAndOwnerId(in.Name, u.Id) != nil {
-        http.Error(w, DuplicateResource, http.StatusBadRequest)
+        w.WriteHeader(http.StatusConflict)
         return
     }
 
@@ -77,7 +77,7 @@ func PutGroup(w http.ResponseWriter, r *http.Request) {
     }
 
     if model.GetGroupByNameAndOwnerId(in.Name, GroupVars[r].OwnerId) != nil {
-        http.Error(w, DuplicateResource, http.StatusBadRequest)
+        w.WriteHeader(http.StatusConflict)
         return
     }
 
@@ -120,6 +120,11 @@ func AddGroupNode(w http.ResponseWriter, r *http.Request) {
     n := model.GetNodeByNameAndOwnerId(in.Name, LoginUserVars[r].Id)
     if n == nil {
         http.Error(w, RequestBodyError, http.StatusBadRequest)
+        return
+    }
+
+    if GroupVars[r].HasNode(n) {
+        w.WriteHeader(http.StatusConflict)
         return
     }
 
@@ -221,5 +226,10 @@ func GetProcess(w http.ResponseWriter, r *http.Request) {
 // DELETE /api/v1/user/groups/{group_name}/deployment
 //
 func DeleteDeployment(w http.ResponseWriter, r *http.Request) {
-    // TBD
+    // TBD, uninstall repo
+
+    GroupVars[r].Deployment = nil
+    GroupVars[r].Process = nil
+    GroupVars[r].Status = model.StatusRaw
+    GroupVars[r].Update()
 }
