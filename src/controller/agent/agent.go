@@ -61,18 +61,8 @@ type AgentInfo struct {
     Version string `json:"version"`
 }
 
-type ShellCommand struct {
-    Command  string   `json:"command"`
-    Args     []string `json:"args"`
-    Restrict bool     `json:"restrict"`
-}
-
-type ScriptJob struct {
-    Commands []*ShellCommand `json:"commands"`
-}
-
 type ScriptJobResult struct {
-    ErrCommand *ShellCommand `json:"err_command"`
+    ErrCommand *model.ShellCommand `json:"err_command"`
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -145,7 +135,7 @@ func GetAgentInfo(uuid string) (*AgentInfo, error) {
     return agentinfo, nil
 }
 
-func ExecScript(uuid string, script *ScriptJob) (*ScriptJobResult, error) {
+func ExecScript(uuid string, script *model.ScriptJob) (*ScriptJobResult, error) {
     req := new(Request)
     req.Action = ActionExecShell
     req.Content, _ = json.Marshal(script)

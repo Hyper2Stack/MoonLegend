@@ -1,6 +1,8 @@
 package model
 
 import (
+    "fmt"
+    "strings"
 )
 
 type Repo struct {
@@ -74,6 +76,15 @@ func GetRepoByNameAndOwnerId(name string, ownerId int64) *Repo {
     }
 
     return l[0]
+}
+
+func GetRepoByNamespaceAndName(namespace, name string) *Repo {
+    u := GetUserByName(namespace)
+    if u == nil {
+        return nil
+    }
+
+    return GetRepoByNameAndOwnerId(name, u.Id)
 }
 
 func (r *Repo) Save() {
@@ -219,4 +230,40 @@ func (r *Repo) RemoveTag(name string) {
     if _, err := stmt.Exec(r.Id, name); err != nil {
         panic(err)
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+func ParseRepoString(s string) (*Repo, *RepoTag) {
+    // s --> "namespace/name:tag"
+    ss := strings.SplitN(s, "/", 2)
+    if len(ss) != 2 {
+        return nil, nil
+    }
+
+    namespace := ss[0]
+    ss = strings.SplitN(ss[1], ":", 2)
+    repo := GetRepoByNamespaceAndName(namespace, ss[0])
+    if repo == nil {
+        return nil, nil
+    }
+
+    if len(ss) < 2 {
+        return repo, nil
+    }
+
+    return repo, repo.GetTag(ss[1])
+}
+
+func CompileRepoString(r *Repo, rt *RepoTag) string {
+    if r == nil {
+        return ""
+    }
+
+    s := fmt.Sprintf("%s/%s", GetUserById(r.OwnerId).Name, r.Name)
+    if rt == nil {
+        return s
+    }
+
+    return fmt.Sprintf("%s:%s", s, rt.Name)
 }

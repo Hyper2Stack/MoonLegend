@@ -1,4 +1,40 @@
-## Exmaple 1*nginx + n*web + 1*mysql
+## Example 1*web + 1*mysql
+
+services:
+  web:
+    image: daocloud.io/web:1.0
+    ports:
+    - 80/tcp
+    environment:
+    - MYSQL_ADDRESS={{with .Singleton "mysql"}}{{.Address}}{{end}}
+    - MYSQL_PORT={{with .Singleton "mysql"}}{{.Port}}{{end}}
+    - MYSQL_PASSWORD=root
+    - MYSQL_PASSWORD={{.Runtime.Env "MysqlRootPassword"}}
+    - MYSQL_DATABASE={{.Runtime.Env "MysqlDatabaseName"}}
+    depends_on:
+    - mysql
+
+  mysql:
+    image: daocloud.io/mysql:5.5
+    singleton: true
+    ports:
+    - 3306/tcp
+    environment:
+    - MYSQL_ROOT_PASSWORD={{.Runtime.Env "MysqlRootPassword"}}
+    - MYSQL_DATABASE={{.Runtime.Env "MysqlDatabaseName"}}
+
+runtime:
+  env:
+  - MysqlRootPassword=hw*2+seven
+  - MysqlDatabaseName=test
+  global_policy:
+    restart: always
+    port_mapping: fixed
+  service_policy:
+    web:
+      instance_num: 1
+
+## Example 1*nginx + n*web + 1*mysql
 
 # nginx will provide external service on outer network,
 # talking with internal services on inner network
@@ -19,8 +55,8 @@ services:
       content: >
         http {
           upstream web {
-            {{range $instance := .Service("web").Instances()}}
-            server {{$instance.Node().Network("inner").Address()}}:{{$instance.Entrypoint("80/tcp").HostPort()}};
+            {{range $instance := .Instances "mysql"}}
+            server {{$instance.AddressOf "inner"}}:{{$instance.PortOf "80/tcp"}};
             {{end}}
           }
           server{ 
@@ -46,11 +82,11 @@ services:
       content: > 
         log_level: info
         database:
-          db: {{.Runtime.Env("MysqlDatabaseName")}}
-          host: {{.Service("mysql").Singoleton().Node().Network("inner").Address()}}
-          port: {{.Service("mysql").Singoleton().Entrypoint("3306/tcp").HostPort()}}
+          db: {{.Runtime.Env "MysqlDatabaseName"}}
+          host: {{with .Singleton "mysql"}}{{.AddressOf "inner"}}{{end}}
+          port: {{with .Singleton "mysql"}}{{.PortOf "3306/tcp"}}{{end}}
           user: root
-          password: {{.Runtime.Env("MysqlRootPassword")}}
+          password: {{.Runtime.Env "MysqlRootPassword"}}
     networks:
     - inner
     depends_on:
@@ -62,8 +98,8 @@ services:
     ports:
     - 3306/tcp
     environment:
-    - MYSQL_ROOT_PASSWORD={{.Runtime.Env("MysqlRootPassword")}}
-    - MYSQL_DATABASE={{.Runtime.Env("MysqlDatabaseName")}}
+    - MYSQL_ROOT_PASSWORD={{.Runtime.Env "MysqlRootPassword"}}
+    - MYSQL_DATABASE={{.Runtime.Env "MysqlDatabaseName"}}
     volumes:
     - "/data:/data"
     networks:
@@ -76,11 +112,11 @@ runtime:
   - MysqlRootPassword=hw*2+seven
   - MysqlDatabaseName=test
   global_policy:
-    restart: true
+    restart: no
     port_mapping: fixed         # fixed/random/customized, fixed means container_port=host_port
                                 # supporting other policies is possible, such as spread policy
-  services:
+  service_policy:
     web:
-      instance: 3
+      instance_num: 3
       port_mapping: random
       port_range: 10001-10009

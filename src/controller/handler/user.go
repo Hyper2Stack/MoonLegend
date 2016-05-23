@@ -25,6 +25,11 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 
     // TBD, should verify username & password
 
+    if model.GetUserByName(in.Username) != nil {
+        w.WriteHeader(http.StatusConflict)
+        return
+    }
+
     u := new(model.User)
     u.Name = in.Username
     u.Email = in.Email

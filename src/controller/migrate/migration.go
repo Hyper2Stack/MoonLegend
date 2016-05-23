@@ -6,6 +6,26 @@ import (
 
 //////////////////////////////////////////////////////////////////////
 
+func Migrate_2(tx migration.LimitedTx) error {
+    scripts := []string{
+        resizeColumnPassword,
+    }
+
+    for _, cmd := range scripts {
+        if _, err := tx.Exec(cmd); err != nil {
+            return err
+        }
+    }
+
+    return nil
+}
+
+var resizeColumnPassword = `
+ALTER TABLE user MODIFY COLUMN password VARCHAR(128);
+`
+
+//////////////////////////////////////////////////////////////////////
+
 func Migrate_1(tx migration.LimitedTx) error {
     scripts := []string{
         userTable,

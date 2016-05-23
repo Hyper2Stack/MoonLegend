@@ -1,10 +1,18 @@
 package model
 
 import (
+    "crypto/hmac"
+    "crypto/sha256"
+    "encoding/hex"
     "fmt"
     "strings"
 
     "github.com/op/go-logging"
+    "github.com/satori/go.uuid"
+)
+
+const (
+    hashKey = "0123456789abcdefghijklmnopqrstuv"
 )
 
 var log, _ = logging.GetLogger("moonlegend")
@@ -96,12 +104,20 @@ func removeElement(s *[]string, e string) {
     }
 }
 
+func containElement(arr []string, e string) bool {
+    for _, s := range arr {
+        if s == e {
+            return true
+        }
+    }
+
+    return false
+}
+
 func hashPassword(password string) string {
-    // TBD
-    return password
+    return hex.EncodeToString(hmac.New(sha256.New, []byte(hashKey)).Sum([]byte(password)))
 }
 
 func generateKey() string {
-    // TBD
-    return ""
+    return uuid.NewV4().String()
 }

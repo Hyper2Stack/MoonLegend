@@ -1,7 +1,14 @@
 package model
 
 import (
+    "bytes"
     "encoding/json"
+    "fmt"
+    "strings"
+    "text/template"
+
+    "gopkg.in/yaml.v2"
+    "controller/model/yml"
 )
 
 type Group struct {
@@ -15,26 +22,36 @@ type Group struct {
 }
 
 type InstanceStatus struct {
-    Service  string `json:"service"`
-    Instance string `json:"instance"`
-    Status   string `json:"status"`
+    Service string `json:"service"`
+    Name    string `json:"name"`
+    Status  string `json:"status"`
 }
 
 type Deployment struct {
-    Repo       string               `json:"repo"`
-    Services   map[string]*Service  `json:"services"`
+    Repo         string       `json:"repo"`
+    Runtime      *yml.Runtime `json:"runtime"`
+    InstanceList []*Instance  `json:"instance_list"`
+    Yml          *yml.Yml     `json:"yml"`
 }
 
 type Service struct {
-    Image        string      `json:"image"`
-    Depends      []string    `json:"depends"`
-    InstanceList []*Instance `json:"instance_list"`
+    Name     string      `json:"name"`
+    Image    string      `json:"image"`
+    Networks []string    `json:"networks"`
+    Depends  []string    `json:"depends_on"`
 }
 
 type Instance struct {
-    Host        *Node         `json:"Host"`
-    Container   *Container    `json:"container"`
-    Entrypoints []*Entrypoint `json:"entrypoints"`
+    Host            *Node         `json:"host"`
+    Service         *Service      `json:"service"`
+    Name            string        `json:"name"`
+    PrepareCommand  *ScriptJob    `json:"prepare_commands"`
+    RunCommand      *ScriptJob    `json:"run_command"`
+    RestartCommand  *ScriptJob    `json:"restart_command"`
+    RmCommand       *ScriptJob    `json:"rm_command"`
+    Entrypoints     []*Entrypoint `json:"entrypoints"`
+    Config          *yml.Config   `json:"config"`
+    Env             []string      `json:"env"`
 }
 
 type Entrypoint struct {
@@ -44,10 +61,14 @@ type Entrypoint struct {
     ContainerPort string `json:"container_port"`
 }
 
-type Container struct {
-    Name         string `json:"name"`
-    RunCommand   string `json:"run_command"`
-    RmCommand    string `json:"rm_command"`
+type ShellCommand struct {
+    Command  string   `json:"command"`
+    Args     []string `json:"args"`
+    Restrict bool     `json:"restrict"`
+}
+
+type ScriptJob struct {
+    Commands []*ShellCommand `json:"commands"`
 }
 
 const (
@@ -258,6 +279,16 @@ func (g *Group) Nodes() []*Node {
     return l
 }
 
+func (g *Group) HasNode(node *Node) bool {
+    for _, n := range g.Nodes() {
+        if n.Uuid == node.Uuid {
+            return true
+        }
+    }
+
+    return false
+}
+
 func (g *Group) AddNode(node *Node) {
     stmt, err := db.Prepare(`
         INSERT INTO nodeMembership(
@@ -293,4 +324,314 @@ func (g *Group) DeleteNode(node *Node) {
     if _, err := stmt.Exec(g.Id, node.Id); err != nil {
         panic(err)
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+func (g *Group) InitDeployment(repo *Repo, tag *RepoTag, runtime *yml.Runtime) error {
+    if g.Status != StatusRaw {
+        return fmt.Errorf("invalid group status")
+    }
+
+    yml := new(yml.Yml)
+    if err := yaml.Unmarshal([]byte(tag.Yml), yml); err != nil {
+        return fmt.Errorf("parse yml error, %v", err)
+    }
+
+    // TBD, check physical infra available, un-necessary?
+
+    d := new(Deployment)
+    d.Yml = yml
+    d.Repo = CompileRepoString(repo, tag)
+    d.InstanceList = make([]*Instance, 0)
+    if runtime == nil {
+        d.Runtime = yml.Runtime
+    } else {
+        d.Runtime = runtime
+    }
+
+    // generate instances
+    for k, v := range yml.Services {
+        ds := new(Service)
+        ds.Name = k
+        ds.Image = v.Image
+        ds.Networks = v.Networks
+        ds.Depends = v.Depends
+
+        num := 1
+        if n := d.Runtime.GetPolicy(k).InstanceNum; n > 1 && !v.Singleton {
+            num = n
+        }
+
+        instances := make([]*Instance, 0)
+        for i := 0; i < num; i++ {
+            ins := new(Instance)
+            ins.Service = ds
+            ins.Name = fmt.Sprintf("%s_%d", ds.Name, i)
+            ins.Config = v.Config
+            ins.Env = v.Environment
+            ins.Entrypoints = make([]*Entrypoint, 0)
+            for _, port := range v.Ports {
+                ep := new(Entrypoint)
+                ss := strings.Split(port, "/")
+                if len(ss) < 2 {
+                    ep.Protocol = "tcp"
+                    ep.ContainerPort = port
+                } else {
+                    ep.Protocol = ss[1]
+                    ep.ContainerPort = ss[0]
+                }
+                ins.Entrypoints = append(ins.Entrypoints, ep)
+            }
+
+            instances = append(instances, ins)
+        }
+
+        if err := g.mappingNodeAndPort(instances, ds, d.Runtime); err != nil {
+            return fmt.Errorf("mapping node and port error, %v", err)
+        }
+
+        d.InstanceList = append(d.InstanceList, instances...)
+    }
+
+    // render
+    if err := d.Render(); err != nil {
+        return err
+    }
+
+    // init deploy commands
+    d.InitDeployCmd()
+
+    // update database
+    g.Deployment = d
+    g.Status = StatusCreated
+    g.Update()
+
+    return nil
+}
+
+func (g *Group) FindNodeByService(s *Service) []*Node {
+    result := make([]*Node, 0)
+    for _, node := range g.Nodes() {
+        if node.HasTag(s.Name) && node.HasNicTags(s.Networks) {
+            result = append(result, node)
+        }
+    }
+
+    return result
+}
+
+func (g *Group) mappingNodeAndPort(instances []*Instance, service *Service, runtime *yml.Runtime) error {
+    nodes := g.FindNodeByService(service)
+    policy := runtime.GetPolicy(service.Name)
+
+    switch policy.PortMapping {
+    case yml.FixedPortMapping:
+        return fixedMapping(instances, nodes)
+    case yml.RandomPortMapping:
+        return randomMapping(instances, nodes)
+    case yml.CustomizedPortMapping:
+        return customMapping(instances, nodes, policy.PortRange)
+    default:
+        return fmt.Errorf("invalid port mapping policy, %s", policy.PortMapping)
+    }
+
+    return nil
+}
+
+func fixedMapping(instances []*Instance, nodes []*Node) error {
+    if len(nodes) < len(instances) {
+        return fmt.Errorf("fixed port mapping, node num < instance num, %d < %d", len(nodes), len(instances))
+    }
+
+    for i := 0; i < len(instances); i++ {
+        instances[i].Host = nodes[i]
+        for _, ep := range instances[i].Entrypoints {
+            ep.ListeningAddr = "0.0.0.0"
+            ep.ListeningPort = ep.ContainerPort
+        }
+    }
+
+    return nil
+}
+
+func randomMapping(instances []*Instance, nodes []*Node) error {
+    // TBD
+    return nil
+}
+
+func customMapping(instances []*Instance, nodes []*Node, portRange string) error {
+    // TBD
+    return nil
+}
+
+func (d *Deployment) Render() error {
+    for _, ins := range d.InstanceList {
+        // Config & Env will be rendered, so every instance should have a copy of these two fields
+        if ins.Config != nil {
+            c := *ins.Config
+            var err error
+            if c.Content, err = d.render(ins.Config.Content); err != nil {
+                return err
+            }
+            ins.Config = &c
+        }
+
+        env := make([]string, 0)
+        for _, e := range ins.Env {
+            s, err := d.render(e)
+            if err != nil {
+                return err
+            }
+            env = append(env, s)
+        }
+        ins.Env = env
+    }
+
+    return nil
+}
+
+func (d *Deployment) render(s string) (string, error) {
+    var b bytes.Buffer
+    t, err := template.New("").Parse(s)
+    if err != nil {
+        return "", err
+    }
+
+    if err := t.Execute(&b, d); err != nil {
+        return "", err
+    }
+
+    return b.String(), nil
+}
+
+func (d *Deployment) InitDeployCmd() {
+    for _, ins := range d.InstanceList {
+        ins.initPrepareCmd()
+        ins.initRunCmd(d.Runtime)
+        ins.initRmCmd()
+        ins.initRestartCmd()
+    }
+}
+
+func (ins *Instance) initPrepareCmd() {
+    ins.PrepareCommand = new(ScriptJob)
+    if ins.Config != nil {
+        // TBD, support config file
+    }
+
+    command := new(ShellCommand)
+    command.Command = "docker"
+    command.Args = []string{"pull", ins.Service.Image}
+    command.Restrict = true
+    ins.PrepareCommand.Commands = append(ins.PrepareCommand.Commands, command)
+}
+
+func (ins *Instance) initRunCmd(runtime *yml.Runtime) {
+    ins.RunCommand = new(ScriptJob)
+    command := new(ShellCommand)
+    command.Command = "docker"
+    command.Restrict = true
+    command.Args = []string{"run", "-d"}
+    command.Args = append(command.Args, fmt.Sprintf("--name=%s", ins.Name))
+
+    for _, envStr := range ins.Env {
+        command.Args = append(command.Args, "-e")
+        command.Args = append(command.Args, envStr)
+    }
+
+    for _, ep := range ins.Entrypoints {
+        command.Args = append(command.Args, "-p")
+        command.Args = append(
+            command.Args,
+            fmt.Sprintf("%s:%s:%s/%s", ep.ListeningAddr, ep.ListeningPort, ep.ContainerPort, ep.Protocol),
+        )
+    }
+
+    command.Args = append(
+        command.Args,
+        fmt.Sprintf("--restart=%s", runtime.GetPolicy(ins.Service.Name).Restart),
+    )
+
+    if ins.Config != nil {
+        // TBD, support config file
+    }
+
+    command.Args = append(command.Args, ins.Service.Image)
+    ins.RunCommand.Commands = append(ins.RunCommand.Commands, command)
+}
+
+func (ins *Instance) initRmCmd() {
+    ins.RmCommand = new(ScriptJob)
+    command := new(ShellCommand)
+    command.Command = "docker"
+    command.Restrict = false
+    command.Args = []string{"rm", "-vf", ins.Name}
+    ins.RmCommand.Commands = append(ins.RmCommand.Commands, command)
+}
+
+func (ins *Instance) initRestartCmd() {
+    ins.RestartCommand = new(ScriptJob)
+    command := new(ShellCommand)
+    command.Command = "docker"
+    command.Restrict = true
+    command.Args = []string{"restart", ins.Name}
+    ins.RestartCommand.Commands = append(ins.RmCommand.Commands, command)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+func (d *Deployment) Instances(service string) []*Instance {
+    result := make([]*Instance, 0)
+    for _, i := range d.InstanceList {
+        if i.Service != nil && i.Service.Name == service {
+            result = append(result, i)
+        }
+    }
+
+    return result
+}
+
+func (d *Deployment) Singleton(service string) *Instance {
+    result := d.Instances(service)
+    if len(result) != 1 {
+        return nil
+    }
+
+    return result[0]
+}
+
+func (i *Instance) AddressOf(network string) string {
+    for _, nic := range i.Host.Nics {
+        for _, tag := range nic.Tags {
+            if tag == network {
+                return nic.Ip4Addr
+            }
+        }
+    }
+
+    return ""
+}
+
+func (i *Instance) Address() string {
+    return i.AddressOf(i.Service.Networks[0])
+}
+
+func (i *Instance) PortOf(port string) string {
+    ss := strings.Split(port , "/")
+    for _, ep := range i.Entrypoints {
+        if ss[0] != ep.ContainerPort {
+            continue
+        }
+
+        if len(ss) == 1 || ss[1] == ep.Protocol {
+            return ep.ListeningPort
+        }
+    }
+
+    return ""
+}
+
+func (i *Instance) Port() string {
+    return i.Entrypoints[0].ListeningPort
 }

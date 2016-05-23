@@ -127,7 +127,7 @@ func (u *User) Save() {
     defer stmt.Close()
 
     u.CreateTime = time.Now().UTC().Unix()
-
+    u.Key = generateKey()
     result, err := stmt.Exec(
         u.Name, u.DisplayName, u.Key, u.Email, u.CreateTime,
     )
@@ -276,4 +276,12 @@ func (u *User) Groups() []*Group {
     conditions = append(conditions, NewCondition("owner_id", "=", u.Id))
 
     return ListGroup(conditions, nil, nil)
+}
+
+func (u *User) HasRepo(repo *Repo) bool {
+    return repo.OwnerId == u.Id
+}
+
+func (u *User) CanDeploy(repo *Repo) bool {
+    return repo.OwnerId == u.Id || repo.IsPublic
 }
