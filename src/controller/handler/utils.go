@@ -51,6 +51,10 @@ func encodeUserToken(username string) string {
 
 func decodeUserToken(key string) (string, bool) {
     text := decrypt(key)
+    if len(text) < 10 {
+        return "", false
+    }
+
     t, _ := strconv.Atoi(text[:10])
     u := text[10:]
     if t + TokenExpireTime > int(time.Now().Unix()) {
