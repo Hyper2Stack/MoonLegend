@@ -4,7 +4,8 @@
     "endpoint": "root:root@tcp(127.0.0.1:3306)/moonlegend"
   },
   "logging": {
-    "stdout": true,
+    "file": "/tmp/moonlegend.log",
+    "stdout": false,
     "level": "debug",
     "format": "%{color}%{time:2006-01-02 15:04:05.999Z-07:00} %{shortfile} %{level} %{color:reset} %{message}"
   },
