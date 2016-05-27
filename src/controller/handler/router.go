@@ -67,6 +67,7 @@ var routes = []Route{
     Route{"POST",   "/api/v1/user/groups/{group_name}/deployment",         wrapper(authWrapper(groupWrapper(PostDeployment)))},
     Route{"PUT",    "/api/v1/user/groups/{group_name}/deployment/prepare", wrapper(authWrapper(groupWrapper(Prepare)))},
     Route{"PUT",    "/api/v1/user/groups/{group_name}/deployment/execute", wrapper(authWrapper(groupWrapper(Deploy)))},
+    Route{"PUT",    "/api/v1/user/groups/{group_name}/deployment/clear",   wrapper(authWrapper(groupWrapper(Clear)))},
     Route{"GET",    "/api/v1/user/groups/{group_name}/deployment/process", wrapper(authWrapper(groupWrapper(GetProcess)))},
     Route{"DELETE", "/api/v1/user/groups/{group_name}/deployment",         wrapper(authWrapper(groupWrapper(DeleteDeployment)))},
 

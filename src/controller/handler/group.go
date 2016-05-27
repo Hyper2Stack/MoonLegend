@@ -3,7 +3,9 @@ package handler
 import (
     "encoding/json"
     "net/http"
+    "time"
 
+    "controller/agent"
     "controller/model"
     "controller/model/yml"
 )
@@ -176,9 +178,21 @@ func PostDeployment(w http.ResponseWriter, r *http.Request) {
 // PUT /api/v1/user/groups/{group_name}/deployment/prepare
 //
 func Prepare(w http.ResponseWriter, r *http.Request) {
-    if GroupVars[r].Status != model.StatusCreated {
+    if GroupVars[r].Status != model.StatusCreated        &&
+       GroupVars[r].Status != model.StatusPrepareTimeout &&
+       GroupVars[r].Status != model.StatusPrepareError   &&
+       GroupVars[r].Status != model.StatusPrepared {
         http.Error(w, InvalidOperation, http.StatusBadRequest)
         return
+    }
+
+    GroupVars[r].InitDeployProcess()
+
+    for uuid, _ := range GroupVars[r].Process {
+        if n := model.GetNodeByUuid(uuid); n == nil || !agent.IsConnected(uuid) {
+            http.Error(w, "invalid node " + uuid, http.StatusBadRequest)
+            return
+        }
     }
 
     go prepare(GroupVars[r])
@@ -188,11 +202,33 @@ func prepare(group *model.Group) {
     group.Status = model.StatusPreparing
     group.Update()
 
-    // TBD pull docker images
-    // possible error
+    for uuid, _ := range group.Process {
+        go prepareInstancesOnNode(uuid, group)
+    }
 
-    group.Status = model.StatusPrepared
-    group.Update()
+    for {
+        time.Sleep(5 * time.Second)
+        // TBD, fix, group may be updated during prepare process
+        group.Update()
+        if status, done := group.ParsePrepareProcessStatus(); done {
+            group.Status = status
+            group.Update()
+            break
+        }
+    }
+}
+
+func prepareInstancesOnNode(uuid string, group *model.Group) {
+    for _, is := range group.Process[uuid] {
+        is.Status = model.StatusPreparing
+        i := group.Deployment.FindInstanceByName(is.Name)
+        if _, err := agent.ExecScript(uuid, i.PrepareCommand); err != nil {
+            // TBD, fix, should consider timeout
+            is.Status = model.StatusPrepareError
+            continue
+        }
+        is.Status = model.StatusPrepared
+    }
 }
 
 // PUT /api/v1/user/groups/{group_name}/deployment/execute
@@ -210,23 +246,80 @@ func deploy(group *model.Group) {
     group.Status = model.StatusDeploying
     group.Update()
 
-    // TBD pull docker images
-    // possible error, roll back
+    services, err := group.Deployment.TopSortServices()
+    if err != nil {
+        log.Info(err.Error())
+        group.Status = model.StatusDeployError
+        group.Update()
+        return
+    }
+
+    for _, service := range services {
+        process := group.GetProcessOfServiceMap()
+        for _, is := range process[service] {
+            is.Status = model.StatusDeploying
+            group.Update()
+            i := group.Deployment.FindInstanceByName(is.Name)
+            if _, err := agent.ExecScript(is.NodeUuid, i.RunCommand); err != nil {
+                // TBD, fix, should consider timeout
+                is.Status = model.StatusDeployError
+                group.Status = model.StatusDeployError
+                group.Update()
+                return
+            }
+            is.Status = model.StatusDeployed
+            group.Update()
+        }
+    }
 
     group.Status = model.StatusDeployed
+    group.Update()
+}
+
+// PUT /api/v1/user/groups/{group_name}/deployment/clear
+//
+func Clear(w http.ResponseWriter, r *http.Request) {
+    if GroupVars[r].Status != model.StatusDeployed      &&
+       GroupVars[r].Status != model.StatusDeployTimeout &&
+       GroupVars[r].Status != model.StatusDeployError {
+        http.Error(w, InvalidOperation, http.StatusBadRequest)
+        return
+    }
+
+    go clear(GroupVars[r])
+}
+
+func clear(group *model.Group) {
+    group.Status = model.StatusClearing
+    group.Update()
+    for _, isList := range group.Process {
+        for _, is := range isList {
+            if is.Status == model.StatusDeployed {
+                is.Status = model.StatusClearing
+                group.Update()
+                i := group.Deployment.FindInstanceByName(is.Name)
+                // TBD, fix, should consider error and timeout
+                agent.ExecScript(is.NodeUuid, i.RmCommand)
+            }
+            is.Status = model.StatusPrepared
+            group.Update()
+        }
+    }
+
+    group.Status = model.StatusPrepared
     group.Update()
 }
 
 // GET /api/v1/user/groups/{group_name}/deployment/process
 //
 func GetProcess(w http.ResponseWriter, r *http.Request) {
-    // TBD
+    json.NewEncoder(w).Encode(GroupVars[r].Process)
 }
 
 // DELETE /api/v1/user/groups/{group_name}/deployment
 //
 func DeleteDeployment(w http.ResponseWriter, r *http.Request) {
-    // TBD, uninstall repo
+    clear(GroupVars[r])
 
     GroupVars[r].Deployment = nil
     GroupVars[r].Process = nil

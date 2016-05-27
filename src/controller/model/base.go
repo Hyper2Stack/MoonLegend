@@ -121,3 +121,73 @@ func hashPassword(password string) string {
 func generateKey() string {
     return uuid.NewV4().String()
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+type Edge struct {
+    From string
+    To   string
+}
+
+func removeEdge(from, to string, edges *[]*Edge) {
+    for i := 0; i < len(*edges); i++ {
+        if (*edges)[i].From == from && (*edges)[i].To == to {
+            *edges = append((*edges)[:i], (*edges)[i+1:]...)
+            return
+        }
+    }
+}
+
+func hasParent(node string, edges []*Edge) bool {
+    for _, e := range edges {
+        if node == e.To {
+            return true
+        }
+    }
+
+    return false
+}
+
+func children(node string, edges []*Edge) []string {
+    result := make([]string, 0)
+    for _, e := range edges {
+        if node == e.From {
+            result = append(result, e.To)
+        }
+    }
+
+    return result
+}
+
+func TopologicSort(nodes []string, edges []*Edge) ([]string, error) {
+    l := make([]string, 0)
+    s := make([]string, 0)
+
+    for _, node := range nodes {
+        if !hasParent(node, edges) {
+            s = append(s, node)
+        }
+    }
+
+    for {
+        if len(s) == 0 {
+            break
+        }
+
+        n := s[0]
+        s = s[1:]
+        l = append(l, n)
+        for _, m := range children(n, edges) {
+            removeEdge(n, m, &edges)
+            if !hasParent(m, edges) {
+                s = append(s, m)
+            }
+        }
+    }
+
+    if len(edges) != 0 {
+        return nil, fmt.Errorf("graph has at least one cycle")
+    }
+
+    return l, nil
+}
