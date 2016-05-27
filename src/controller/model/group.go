@@ -12,19 +12,20 @@ import (
 )
 
 type Group struct {
-    Id              int64               `json:"id"`
-    Name            string              `json:"name"`
-    Description     string              `json:"description"`
-    OwnerId         int64               `json:"owner_id"`
-    Status          string              `json:"status"`
-    Deployment      *Deployment         `json:"deployment"`
-    Process         []*InstanceStatus   `json:"process"`
+    Id              int64                          `json:"id"`
+    Name            string                         `json:"name"`
+    Description     string                         `json:"description"`
+    OwnerId         int64                          `json:"owner_id"`
+    Status          string                         `json:"status"`
+    Deployment      *Deployment                    `json:"deployment"`
+    Process         map[string][]*InstanceStatus   `json:"process"`
 }
 
 type InstanceStatus struct {
-    Service string `json:"service"`
-    Name    string `json:"name"`
-    Status  string `json:"status"`
+    NodeUuid string `json:"node_uuid"`
+    Service  string `json:"service"`
+    Name     string `json:"name"`
+    Status   string `json:"status"`
 }
 
 type Deployment struct {
@@ -35,10 +36,10 @@ type Deployment struct {
 }
 
 type Service struct {
-    Name     string      `json:"name"`
-    Image    string      `json:"image"`
-    Networks []string    `json:"networks"`
-    Depends  []string    `json:"depends_on"`
+    Name     string   `json:"name"`
+    Image    string   `json:"image"`
+    Networks []string `json:"networks"`
+    Depends  []string `json:"depends_on"`
 }
 
 type Instance struct {
@@ -72,13 +73,17 @@ type ScriptJob struct {
 }
 
 const (
-    StatusRaw          = "raw"
-    StatusCreated      = "created"
-    StatusPreparing    = "preparing"
-    StatusPrepared     = "prepared"
-    StatusDeploying    = "deploying"
-    StatusDeployed     = "deployed"
-    StatusError        = "error"
+    StatusRaw            = "raw"
+    StatusCreated        = "created"
+    StatusPreparing      = "preparing"
+    StatusPrepared       = "prepared"
+    StatusPrepareTimeout = "prepare_timeout"
+    StatusPrepareError   = "prepare_error"
+    StatusDeploying      = "deploying"
+    StatusDeployed       = "deployed"
+    StatusDeployTimeout  = "deploy_timeout"
+    StatusDeployError    = "deploy_error"
+    StatusClearing       = "clearing"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -410,11 +415,63 @@ func (g *Group) InitDeployment(repo *Repo, tag *RepoTag, runtime *yml.Runtime) e
     return nil
 }
 
+func (g *Group) InitDeployProcess() {
+    g.Process = make(map[string][]*InstanceStatus)
+    for _, i := range g.Deployment.InstanceList {
+        is := new(InstanceStatus)
+        is.NodeUuid = i.Host.Uuid
+        is.Status = StatusCreated
+        is.Service = i.Service.Name
+        is.Name = i.Name
+        g.Process[i.Host.Uuid] = append(g.Process[i.Host.Uuid], is)
+    }
+}
+
 func (g *Group) FindNodeByService(s *Service) []*Node {
     result := make([]*Node, 0)
     for _, node := range g.Nodes() {
         if node.HasTag(s.Name) && node.HasNicTags(s.Networks) {
             result = append(result, node)
+        }
+    }
+
+    return result
+}
+
+func (g *Group) ParsePrepareProcessStatus() (status string, done bool) {
+    done = true
+    status = StatusPrepared
+
+    for _, insts := range g.Process {
+        for _, is := range insts {
+            if is.Status == StatusPrepared {
+                continue
+            }
+            if is.Status == StatusPrepareTimeout {
+                if status == StatusPrepared {
+                    status = StatusPrepareTimeout
+                }
+                continue
+            }
+
+            if is.Status == StatusPrepareError {
+                status = StatusPrepareError
+                continue
+            }
+
+            done = false
+            return
+        }
+    }
+
+    return
+}
+
+func (g *Group) GetProcessOfServiceMap() map[string][]*InstanceStatus {
+    result := make(map[string][]*InstanceStatus)
+    for _, isList := range g.Process {
+        for _, is := range isList {
+            result[is.Service] = append(result[is.Service], is)
         }
     }
 
@@ -463,6 +520,43 @@ func randomMapping(instances []*Instance, nodes []*Node) error {
 func customMapping(instances []*Instance, nodes []*Node, portRange string) error {
     // TBD
     return nil
+}
+
+func (d *Deployment) FindInstanceByName(name string) *Instance {
+    for _, i := range d.InstanceList {
+        if i.Name == name {
+            return i
+        }
+    }
+
+    return nil
+}
+
+func (d *Deployment) TopSortServices() ([]string, error) {
+    edges := make([]*Edge, 0)
+    nodes := make([]string, 0)
+
+    for _, i := range d.InstanceList {
+        if containElement(nodes, i.Service.Name) {
+            continue
+        }
+
+        nodes = append(nodes, i.Service.Name)
+        for _, parent := range i.Service.Depends {
+            edge := new(Edge)
+            edge.From = parent
+            edge.To = i.Service.Name
+            edges = append(edges, edge)
+        }
+    }
+
+    for _, edge := range edges {
+        if !containElement(nodes, edge.From) {
+            return nil, fmt.Errorf("invalid edge %s -> %s, missing node %s", edge.From, edge.To, edge.From)
+        }
+    }
+
+    return TopologicSort(nodes, edges)
 }
 
 func (d *Deployment) Render() error {
