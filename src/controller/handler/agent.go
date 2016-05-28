@@ -63,7 +63,7 @@ func ConnectAgent(w http.ResponseWriter, r *http.Request) {
             node.Name = fmt.Sprintf("%s_%s", ni.Hostname, auth[1])
         }
         node.Description = fmt.Sprintf("%s's host: %s", u.Name, ni.Hostname)
-        node.Nics = ni.Nics
+        node.ImportAgentNics(ni.Nics)
         node.Save()
     }
 

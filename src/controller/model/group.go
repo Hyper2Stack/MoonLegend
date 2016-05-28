@@ -9,6 +9,7 @@ import (
 
     "gopkg.in/yaml.v2"
     "controller/model/yml"
+    "controller/agent"
 )
 
 type Group struct {
@@ -728,4 +729,26 @@ func (i *Instance) PortOf(port string) string {
 
 func (i *Instance) Port() string {
     return i.Entrypoints[0].ListeningPort
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+func (c *ShellCommand) Convert() *agent.ShellCommand {
+    ac := new(agent.ShellCommand)
+    ac.Command = c.Command
+    ac.Restrict = c.Restrict
+    for _, arg := range c.Args {
+        ac.Args = append(ac.Args, arg)
+    }
+
+    return ac
+}
+
+func (s *ScriptJob) Convert() *agent.ScriptJob {
+    as := new(agent.ScriptJob)
+    for _, c := range s.Commands {
+        as.Commands = append(as.Commands, c.Convert())
+    }
+
+    return as
 }

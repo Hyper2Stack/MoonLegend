@@ -222,7 +222,7 @@ func prepareInstancesOnNode(uuid string, group *model.Group) {
     for _, is := range group.Process[uuid] {
         is.Status = model.StatusPreparing
         i := group.Deployment.FindInstanceByName(is.Name)
-        if _, err := agent.ExecScript(uuid, i.PrepareCommand); err != nil {
+        if _, err := agent.ExecScript(uuid, i.PrepareCommand.Convert()); err != nil {
             // TBD, fix, should consider timeout
             is.Status = model.StatusPrepareError
             continue
@@ -260,7 +260,7 @@ func deploy(group *model.Group) {
             is.Status = model.StatusDeploying
             group.Update()
             i := group.Deployment.FindInstanceByName(is.Name)
-            if _, err := agent.ExecScript(is.NodeUuid, i.RunCommand); err != nil {
+            if _, err := agent.ExecScript(is.NodeUuid, i.RunCommand.Convert()); err != nil {
                 // TBD, fix, should consider timeout
                 is.Status = model.StatusDeployError
                 group.Status = model.StatusDeployError
@@ -299,7 +299,7 @@ func clear(group *model.Group) {
                 group.Update()
                 i := group.Deployment.FindInstanceByName(is.Name)
                 // TBD, fix, should consider error and timeout
-                agent.ExecScript(is.NodeUuid, i.RmCommand)
+                agent.ExecScript(is.NodeUuid, i.RmCommand.Convert())
             }
             is.Status = model.StatusPrepared
             group.Update()
