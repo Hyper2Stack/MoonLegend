@@ -2,6 +2,8 @@ package model
 
 import (
     "encoding/json"
+
+    "controller/agent"
 )
 
 type Node struct {
@@ -260,4 +262,17 @@ func (n *Node) HasNicTags(tags []string) bool {
     }
 
     return true
+}
+
+func (n *Node) ImportAgentNics(agentNics []*agent.Nic) {
+    n.Nics = nil
+    for _, anic := range agentNics {
+        nic := new(Nic)
+        nic.Name = anic.Name
+        nic.Ip4Addr = anic.Ip4Addr
+        for _, tag := range anic.Tags {
+            nic.Tags = append(nic.Tags, tag)
+        }
+        n.Nics = append(n.Nics, nic)
+    }
 }

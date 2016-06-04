@@ -47,7 +47,7 @@ func DebugAgent(w http.ResponseWriter, r *http.Request) {
             http.Error(w, "Decode json error", http.StatusBadRequest)
             return
         }
-        if _, err := agent.ExecScript(uuid, script); err != nil {
+        if _, err := agent.ExecScript(uuid, script.Convert()); err != nil {
             http.Error(w, err.Error(), http.StatusBadRequest)
             return
         }

@@ -7,8 +7,6 @@ import (
     "sync"
 
     "github.com/gorilla/websocket"
-
-    "controller/model"
 )
 
 const (
@@ -53,16 +51,32 @@ func EncodeResponse(res *Response) []byte {
 ////////////////////////////////////////////////////////////////////////////////
 
 type NodeInfo struct {
-    Hostname string       `json:"hostname"`
-    Nics     []*model.Nic `json:"nics"`
+    Hostname string `json:"hostname"`
+    Nics     []*Nic `json:"nics"`
+}
+
+type Nic struct {
+    Name    string   `json:"name"`
+    Ip4Addr string   `json:"ip4addr"`
+    Tags    []string `json:"tags"`
 }
 
 type AgentInfo struct {
     Version string `json:"version"`
 }
 
+type ShellCommand struct {
+    Command  string   `json:"command"`
+    Args     []string `json:"args"`
+    Restrict bool     `json:"restrict"`
+}
+
+type ScriptJob struct {
+    Commands []*ShellCommand `json:"commands"`
+}
+
 type ScriptJobResult struct {
-    ErrCommand *model.ShellCommand `json:"err_command"`
+    ErrCommand *ShellCommand `json:"err_command"`
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -135,7 +149,7 @@ func GetAgentInfo(uuid string) (*AgentInfo, error) {
     return agentinfo, nil
 }
 
-func ExecScript(uuid string, script *model.ScriptJob) (*ScriptJobResult, error) {
+func ExecScript(uuid string, script *ScriptJob) (*ScriptJobResult, error) {
     req := new(Request)
     req.Action = ActionExecShell
     req.Content, _ = json.Marshal(script)
@@ -158,14 +172,12 @@ func (ac *AgentConnection) do(req *Request) (*Response, error) {
     defer ac.Lock.Unlock()
 
     if err := ac.Ws.WriteMessage(websocket.TextMessage, EncodeRequest(req)); err != nil {
-        log.Errorf("WEBSOCKET WRITE %s", err.Error())
-        return nil, err
+        return nil, fmt.Errorf("websocket write %s", err.Error())
     }
 
     _, m, err := ac.Ws.ReadMessage()
     if err != nil {
-        log.Errorf("WEBSOCKET READ %s", err.Error())
-        return nil, err
+        return nil, fmt.Errorf("websocket read %s", err.Error())
     }
 
     return DecodeResponse(m), nil
