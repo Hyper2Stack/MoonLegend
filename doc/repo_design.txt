@@ -52,7 +52,7 @@ services:
     config_file:
       path: /etc/nginx/nginx.conf
       mode: 644
-      content: >
+      content: |
         http {
           upstream web {
             {{range $instance := .Instances "mysql"}}
@@ -79,7 +79,7 @@ services:
     config_file:
       path: /web/web.yml
       mode: 644
-      content: > 
+      content: |
         log_level: info
         database:
           db: {{.Runtime.Env "MysqlDatabaseName"}}
