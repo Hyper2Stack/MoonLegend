@@ -2,183 +2,214 @@ package agent
 
 import (
     "encoding/json"
+    "errors"
     "fmt"
-    "strings"
     "sync"
+    "time"
 
+    "github.com/op/go-logging"
     "github.com/gorilla/websocket"
+    "github.com/satori/go.uuid"
+    "github.com/hyper2stack/mooncommon/protocol"
 )
 
-const (
-    ActionPing          = "ping"
-    ActionNodeInfo      = "get-node-info"
-    ActionAgentInfo     = "get-agent-info"
-    ActionExecShell     = "exec-shell-script"
-    StatusOK            = "ok"
-    StatusBadRequest    = "bad-request"
-    StatusError         = "error"
-    StatusInternalError = "internal-error"
-)
+////////////////////////////////////////////////////////////////////////////////
 
-type Request struct {
-    Action  string
-    Content []byte
+type ConnWrapper struct {
+    Conn *websocket.Conn
+    Lock *sync.Mutex
+    Jobs map[string]chan *Result
 }
 
-type Response struct {
+type Result struct {
     Status  string
-    Content []byte
+    Payload []byte
 }
 
-func DecodeRequest(msg []byte) *Request {
-    ss := strings.SplitN(string(msg), "\r\n", 2)
-    return &Request{Action: ss[0], Content: []byte(ss[1])}
-}
+var log, _  = logging.GetLogger("moonlegend")
+var wsConns = make(map[string]*ConnWrapper)
 
-func EncodeRequest(req *Request) []byte {
-    return []byte(fmt.Sprintf("%s\r\n%s", req.Action, req.Content))
-}
-
-func DecodeResponse(msg []byte) *Response {
-    ss := strings.SplitN(string(msg), "\r\n", 2)
-    return &Response{Status: ss[0], Content: []byte(ss[1])}
-}
-
-func EncodeResponse(res *Response) []byte {
-    return []byte(fmt.Sprintf("%s\r\n%s", res.Status, res.Content))
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-type NodeInfo struct {
-    Hostname string `json:"hostname"`
-    Nics     []*Nic `json:"nics"`
-}
-
-type Nic struct {
-    Name    string   `json:"name"`
-    Ip4Addr string   `json:"ip4addr"`
-    Tags    []string `json:"tags"`
-}
-
-type AgentInfo struct {
-    Version string `json:"version"`
-}
-
-type ShellCommand struct {
-    Command  string   `json:"command"`
-    Args     []string `json:"args"`
-    Restrict bool     `json:"restrict"`
-}
-
-type ScriptJob struct {
-    Commands []*ShellCommand `json:"commands"`
-}
-
-type ScriptJobResult struct {
-    ErrCommand *ShellCommand `json:"err_command"`
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-type AgentConnection struct {
-    Ws         *websocket.Conn
-    Lock       *sync.Mutex
-}
-
-var (
-    wsConns = make(map[string]*AgentConnection)
-)
+var ErrNotConnected = errors.New("not connected")
+var ErrTimeout      = errors.New("request timeout")
+var DefaultTimeout  = 30
+var ScriptTimeout   = 900
 
 func IsConnected(uuid string) bool {
-    return wsConns[uuid] != nil
+    return wsConns[uuid] != nil && wsConns[uuid].Conn != nil
 }
 
-func Register(uuid string, conn *websocket.Conn) {
-    wsConns[uuid] = &AgentConnection{Ws: conn, Lock: new(sync.Mutex)}
-}
+func Listen(uuid string, conn *websocket.Conn) error {
+    if wrapper, ok := wsConns[uuid]; ok {
+        wrapper.Lock.Lock()
+        wrapper.Conn = conn
+        wrapper.Lock.Unlock()
+    } else {
+        wsConns[uuid] = &ConnWrapper{
+            Conn: conn,
+            Lock: new(sync.Mutex),
+            Jobs: make(map[string]chan *Result),
+        }
+    }
 
-func Unregister(uuid string, conn *websocket.Conn) {
-    if wsConns[uuid] != nil && wsConns[uuid].Ws == conn {
-        delete(wsConns, uuid)
+    for {
+        _, msg, err := wsConns[uuid].Conn.ReadMessage()
+        if err != nil {
+            wsConns[uuid].Conn = nil
+            return err
+        }
+
+        go wsConns[uuid].receive(msg)
     }
 }
 
-func Ping(uuid string) error {
-    // TBD
+func GetNodeInfo(uuid string) (*protocol.Node, error) {
+    if !IsConnected(uuid) {
+        return nil, ErrNotConnected
+    }
+
+    status, body, err := wsConns[uuid].send(protocol.MethodNodeInfo, nil, DefaultTimeout)
+    if err != nil {
+        return nil, err
+    }
+
+    if status != protocol.StatusOK {
+        return nil, parseErrorBody(body)
+    }
+
+    info := new(protocol.Node)
+    if err := json.Unmarshal(body, info); err != nil {
+        return nil, err
+    }
+
+    return info, nil
+}
+
+func GetAgentInfo(uuid string) (*protocol.Agent, error) {
+    if !IsConnected(uuid) {
+        return nil, ErrNotConnected
+    }
+
+    status, body, err := wsConns[uuid].send(protocol.MethodAgentInfo, nil, DefaultTimeout)
+    if err != nil {
+        return nil, err
+    }
+
+    if status != protocol.StatusOK {
+        return nil, parseErrorBody(body)
+    }
+
+    info := new(protocol.Agent)
+    if err := json.Unmarshal(body, info); err != nil {
+        return nil, err
+    }
+
+    return info, nil
+}
+
+func CreateFile(uuid string, file *protocol.File) error {
+    if !IsConnected(uuid) {
+        return ErrNotConnected
+    }
+
+    payload, _ := json.Marshal(file)
+    status, body, err := wsConns[uuid].send(protocol.MethodCreateFile, payload, DefaultTimeout)
+    if err != nil {
+        return err
+    }
+
+    if status != protocol.StatusOK {
+        return parseErrorBody(body)
+    }
+
     return nil
 }
 
-func GetNodeInfo(uuid string) (*NodeInfo, error) {
-    req := new(Request)
-    req.Action = ActionNodeInfo
-    res, err := wsConns[uuid].do(req)
+func ExecScript(uuid string, script *protocol.Script) (*protocol.ScriptResult, error) {
+    if !IsConnected(uuid) {
+        return nil, ErrNotConnected
+    }
+
+    payload, _ := json.Marshal(script)
+    status, body, err := wsConns[uuid].send(protocol.MethodExecScript, payload, ScriptTimeout)
     if err != nil {
         return nil, err
     }
 
-    if res.Status != StatusOK {
-        return nil, fmt.Errorf("bad response %s", res.Status)
+    if status != protocol.StatusOK {
+        return nil, parseErrorBody(body)
     }
 
-    nodeinfo := new(NodeInfo)
-    if err := json.Unmarshal(res.Content, nodeinfo); err != nil {
+    result := new(protocol.ScriptResult)
+    if err := json.Unmarshal(body, result); err != nil {
         return nil, err
     }
 
-    return nodeinfo, nil
+    return result, nil
 }
 
-func GetAgentInfo(uuid string) (*AgentInfo, error) {
-    req := new(Request)
-    req.Action = ActionAgentInfo
-    res, err := wsConns[uuid].do(req)
-    if err != nil {
-        return nil, err
+
+func parseErrorBody(body []byte) error {
+    message := struct {
+        Err string `json:"error"`
+    }{}
+    if err := json.Unmarshal(body, &message); err != nil {
+        return err
     }
 
-    if res.Status != StatusOK {
-        return nil, fmt.Errorf("bad response %s", res.Status)
-    }
-
-    agentinfo := new(AgentInfo)
-    if err := json.Unmarshal(res.Content, agentinfo); err != nil {
-        return nil, err
-    }
-
-    return agentinfo, nil
+    return fmt.Errorf("client error, %s", message.Err)
 }
 
-func ExecScript(uuid string, script *ScriptJob) (*ScriptJobResult, error) {
-    req := new(Request)
-    req.Action = ActionExecShell
-    req.Content, _ = json.Marshal(script)
-    res, err := wsConns[uuid].do(req)
+func (cw *ConnWrapper) receive(body []byte) {
+    msg, err := protocol.Decode(body)
     if err != nil {
-        return nil, err
+        log.Errorf("Message decode error")
+        return
     }
 
-    if res.Status != StatusOK {
-        scriptResult := new(ScriptJobResult)
-        json.Unmarshal(res.Content, scriptResult)
-        return scriptResult, fmt.Errorf("bad response %s", res.Status)
+    if msg.Type != protocol.Res {
+        return
     }
 
-    return nil, nil
+    if ch, ok := cw.Jobs[msg.Uuid]; ok {
+        ch <- &Result{Status: msg.Method, Payload: msg.Payload}
+        return
+    }
+
+    log.Infof("Job %s not found", msg.Uuid)
 }
 
-func (ac *AgentConnection) do(req *Request) (*Response, error) {
-    ac.Lock.Lock()
-    defer ac.Lock.Unlock()
+func (cw *ConnWrapper) send(method string, payload []byte, timeout int) (string, []byte, error) {
+    uuid := uuid.NewV4().String()
 
-    if err := ac.Ws.WriteMessage(websocket.TextMessage, EncodeRequest(req)); err != nil {
-        return nil, fmt.Errorf("websocket write %s", err.Error())
-    }
+    msg := new(protocol.Msg)
+    msg.Type = protocol.Req
+    msg.Uuid = uuid
+    msg.Method = method
+    msg.Payload = payload
 
-    _, m, err := ac.Ws.ReadMessage()
+    body, err := protocol.Encode(msg)
     if err != nil {
-        return nil, fmt.Errorf("websocket read %s", err.Error())
+        log.Errorf("Message encode error")
+        return "", nil, err
     }
 
-    return DecodeResponse(m), nil
+    ch := make(chan *Result)
+    cw.Jobs[uuid] = ch
+    defer delete(cw.Jobs, uuid)
+
+    cw.Lock.Lock()
+    if err := cw.Conn.WriteMessage(websocket.TextMessage, body); err != nil {
+        cw.Lock.Unlock()
+        return "", nil, err
+    }
+    cw.Lock.Unlock()
+
+    select {
+    case res := <- ch:
+        return res.Status, res.Payload, nil
+    case <-time.After(time.Duration(timeout) * time.Second):
+        return "", nil, ErrTimeout
+    }
+
+    return "", nil, nil
 }

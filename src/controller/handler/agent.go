@@ -40,9 +40,15 @@ func ConnectAgent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Step 2: register connection
-    agent.Register(auth[1], c)
-    defer agent.Unregister(auth[1], c)
+    // Step 2: register connection and read loop
+    disconnected := make(chan struct{})
+    go func() {
+        err := agent.Listen(auth[1], c)
+        log.Info("Node %s disconnected, %v", auth[1], err)
+        disconnected <- struct{}{}
+    }()
+
+    time.Sleep(1 * time.Second)
 
     // Step 3: update node info
     node := model.GetNodeByUuidAndOwnerId(auth[1], u.Id)
@@ -67,12 +73,5 @@ func ConnectAgent(w http.ResponseWriter, r *http.Request) {
         node.Save()
     }
 
-    // Step 4: heartbeat
-    for {
-        time.Sleep(5 * time.Second)
-        if err := agent.Ping(auth[1]); err != nil {
-            log.Infof("Ping node %s failed, %v", auth[1], err)
-            break
-        }
-    }
+    <- disconnected
 }
