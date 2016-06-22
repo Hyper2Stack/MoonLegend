@@ -44,7 +44,7 @@ func ConnectAgent(w http.ResponseWriter, r *http.Request) {
     disconnected := make(chan struct{})
     go func() {
         err := agent.Listen(auth[1], c)
-        log.Info("Node %s disconnected, %v", auth[1], err)
+        log.Infof("Node %s disconnected, %v", auth[1], err)
         disconnected <- struct{}{}
     }()
 
