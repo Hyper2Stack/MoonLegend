@@ -9,7 +9,8 @@ import (
 
     "gopkg.in/yaml.v2"
     "controller/model/yml"
-    "controller/agent"
+
+    "github.com/hyper2stack/mooncommon/protocol"
 )
 
 type Group struct {
@@ -44,16 +45,16 @@ type Service struct {
 }
 
 type Instance struct {
-    Host            *Node         `json:"host"`
-    Service         *Service      `json:"service"`
-    Name            string        `json:"name"`
-    PrepareCommand  *ScriptJob    `json:"prepare_commands"`
-    RunCommand      *ScriptJob    `json:"run_command"`
-    RestartCommand  *ScriptJob    `json:"restart_command"`
-    RmCommand       *ScriptJob    `json:"rm_command"`
-    Entrypoints     []*Entrypoint `json:"entrypoints"`
-    Config          *yml.Config   `json:"config"`
-    Env             []string      `json:"env"`
+    Host            *Node            `json:"host"`
+    Service         *Service         `json:"service"`
+    Name            string           `json:"name"`
+    PrepareCommand  *protocol.Script `json:"prepare_commands"`
+    RunCommand      *protocol.Script `json:"run_command"`
+    RestartCommand  *protocol.Script `json:"restart_command"`
+    RmCommand       *protocol.Script `json:"rm_command"`
+    Entrypoints     []*Entrypoint    `json:"entrypoints"`
+    Config          *yml.Config      `json:"config"`
+    Env             []string         `json:"env"`
 }
 
 type Entrypoint struct {
@@ -61,16 +62,6 @@ type Entrypoint struct {
     ListeningAddr string `json:"listening_addr"`
     ListeningPort string `json:"listening_port"`
     ContainerPort string `json:"container_port"`
-}
-
-type ShellCommand struct {
-    Command  string   `json:"command"`
-    Args     []string `json:"args"`
-    Restrict bool     `json:"restrict"`
-}
-
-type ScriptJob struct {
-    Commands []*ShellCommand `json:"commands"`
 }
 
 const (
@@ -610,21 +601,21 @@ func (d *Deployment) InitDeployCmd() {
 }
 
 func (ins *Instance) initPrepareCmd() {
-    ins.PrepareCommand = new(ScriptJob)
+    ins.PrepareCommand = new(protocol.Script)
     if ins.Config != nil {
         // TBD, support config file
     }
 
-    command := new(ShellCommand)
-    command.Command = "docker"
-    command.Args = []string{"pull", ins.Service.Image}
+    command := new(protocol.Command)
+    command.Command = "bash"
+    command.Args = []string{"-c", fmt.Sprintf("docker inspect %s > /dev/null 2>&1 || docker pull %s", ins.Service.Image, ins.Service.Image)}
     command.Restrict = true
     ins.PrepareCommand.Commands = append(ins.PrepareCommand.Commands, command)
 }
 
 func (ins *Instance) initRunCmd(runtime *yml.Runtime) {
-    ins.RunCommand = new(ScriptJob)
-    command := new(ShellCommand)
+    ins.RunCommand = new(protocol.Script)
+    command := new(protocol.Command)
     command.Command = "docker"
     command.Restrict = true
     command.Args = []string{"run", "-d"}
@@ -657,8 +648,8 @@ func (ins *Instance) initRunCmd(runtime *yml.Runtime) {
 }
 
 func (ins *Instance) initRmCmd() {
-    ins.RmCommand = new(ScriptJob)
-    command := new(ShellCommand)
+    ins.RmCommand = new(protocol.Script)
+    command := new(protocol.Command)
     command.Command = "docker"
     command.Restrict = false
     command.Args = []string{"rm", "-vf", ins.Name}
@@ -666,8 +657,8 @@ func (ins *Instance) initRmCmd() {
 }
 
 func (ins *Instance) initRestartCmd() {
-    ins.RestartCommand = new(ScriptJob)
-    command := new(ShellCommand)
+    ins.RestartCommand = new(protocol.Script)
+    command := new(protocol.Command)
     command.Command = "docker"
     command.Restrict = true
     command.Args = []string{"restart", ins.Name}
@@ -729,26 +720,4 @@ func (i *Instance) PortOf(port string) string {
 
 func (i *Instance) Port() string {
     return i.Entrypoints[0].ListeningPort
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-func (c *ShellCommand) Convert() *agent.ShellCommand {
-    ac := new(agent.ShellCommand)
-    ac.Command = c.Command
-    ac.Restrict = c.Restrict
-    for _, arg := range c.Args {
-        ac.Args = append(ac.Args, arg)
-    }
-
-    return ac
-}
-
-func (s *ScriptJob) Convert() *agent.ScriptJob {
-    as := new(agent.ScriptJob)
-    for _, c := range s.Commands {
-        as.Commands = append(as.Commands, c.Convert())
-    }
-
-    return as
 }

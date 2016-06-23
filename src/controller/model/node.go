@@ -3,7 +3,7 @@ package model
 import (
     "encoding/json"
 
-    "controller/agent"
+    "github.com/hyper2stack/mooncommon/protocol"
 )
 
 type Node struct {
@@ -264,14 +264,14 @@ func (n *Node) HasNicTags(tags []string) bool {
     return true
 }
 
-func (n *Node) ImportAgentNics(agentNics []*agent.Nic) {
+func (n *Node) ImportAgentNics(agentNics []*protocol.Nic) {
     n.Nics = nil
     for _, anic := range agentNics {
         nic := new(Nic)
         nic.Name = anic.Name
         nic.Ip4Addr = anic.Ip4Addr
-        for _, tag := range anic.Tags {
-            nic.Tags = append(nic.Tags, tag)
+        if anic.IsPrimary {
+            nic.Tags = append(nic.Tags, "default")
         }
         n.Nics = append(n.Nics, nic)
     }

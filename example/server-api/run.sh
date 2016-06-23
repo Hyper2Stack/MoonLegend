@@ -1,5 +1,9 @@
 #!/bin/bash
 
+## pre download images, avoid waiting long time for preparing
+docker inspect daocloud.io/hyper2stack/web:1.1 > /dev/null 2>&1 || docker pull daocloud.io/hyper2stack/web:1.1
+docker inspect daocloud.io/mysql:5.5 > /dev/null 2>&1 || docker pull daocloud.io/mysql:5.5
+
 ### ping
 curl -i localhost:8080/api/v1/ping
 
@@ -86,10 +90,6 @@ curl -i -H "Authorization: ${session_key}" localhost:8080/api/v1/user/groups/fir
 ## create
 curl -i -H "Authorization: ${session_key}" localhost:8080/api/v1/user/groups/first/deployment -X POST -d '{"repo":"hyper2stack/p001:v1"}'
 curl -i -H "Authorization: ${session_key}" localhost:8080/api/v1/user/groups/first/deployment
-
-## pre download images, avoid waiting long time for preparing
-docker pull daocloud.io/hyper2stack/web:1.1
-docker pull daocloud.io/mysql:5.5
 
 ## prepare
 curl -i -H "Authorization: ${session_key}" localhost:8080/api/v1/user/groups/first/deployment/prepare -X PUT
