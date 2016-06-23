@@ -48,6 +48,7 @@ type Instance struct {
     Host            *Node            `json:"host"`
     Service         *Service         `json:"service"`
     Name            string           `json:"name"`
+    PrepareFile     *protocol.File   `json:"prepare_file"`
     PrepareCommand  *protocol.Script `json:"prepare_commands"`
     RunCommand      *protocol.Script `json:"run_command"`
     RestartCommand  *protocol.Script `json:"restart_command"`
@@ -77,6 +78,8 @@ const (
     StatusDeployError    = "deploy_error"
     StatusClearing       = "clearing"
 )
+
+var dataDir = "/var/run/moon"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -593,6 +596,7 @@ func (d *Deployment) render(s string) (string, error) {
 
 func (d *Deployment) InitDeployCmd() {
     for _, ins := range d.InstanceList {
+        ins.initPrepareFile()
         ins.initPrepareCmd()
         ins.initRunCmd(d.Runtime)
         ins.initRmCmd()
@@ -600,12 +604,20 @@ func (d *Deployment) InitDeployCmd() {
     }
 }
 
-func (ins *Instance) initPrepareCmd() {
-    ins.PrepareCommand = new(protocol.Script)
-    if ins.Config != nil {
-        // TBD, support config file
+func (ins *Instance) initPrepareFile() {
+    if ins.Config == nil {
+        return
     }
 
+    ins.PrepareFile = &protocol.File{
+        Path: fmt.Sprintf("%s/%s", dataDir, ins.Name),
+        Mode: ins.Config.Mode,
+        Content: ins.Config.Content,
+    }
+}
+
+func (ins *Instance) initPrepareCmd() {
+    ins.PrepareCommand = new(protocol.Script)
     command := new(protocol.Command)
     command.Command = "bash"
     command.Args = []string{"-c", fmt.Sprintf("docker inspect %s > /dev/null 2>&1 || docker pull %s", ins.Service.Image, ins.Service.Image)}
@@ -626,6 +638,11 @@ func (ins *Instance) initRunCmd(runtime *yml.Runtime) {
         command.Args = append(command.Args, envStr)
     }
 
+    if ins.Config != nil {
+        command.Args = append(command.Args, "-v")
+        command.Args = append(command.Args, fmt.Sprintf("%s/%s:%s", dataDir, ins.Name, ins.Config.Path))
+    }
+
     for _, ep := range ins.Entrypoints {
         command.Args = append(command.Args, "-p")
         command.Args = append(
@@ -638,10 +655,6 @@ func (ins *Instance) initRunCmd(runtime *yml.Runtime) {
         command.Args,
         fmt.Sprintf("--restart=%s", runtime.GetPolicy(ins.Service.Name).Restart),
     )
-
-    if ins.Config != nil {
-        // TBD, support config file
-    }
 
     command.Args = append(command.Args, ins.Service.Image)
     ins.RunCommand.Commands = append(ins.RunCommand.Commands, command)
