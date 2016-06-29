@@ -222,8 +222,12 @@ func prepareInstancesOnNode(uuid string, group *model.Group) {
     for _, is := range group.Process[uuid] {
         is.Status = model.StatusPreparing
         i := group.Deployment.FindInstanceByName(is.Name)
-        result, err := agent.ExecScript(uuid, i.PrepareCommand)
-        if err != nil || !result.Ok {
+        if i.PrepareFile != nil && agent.CreateFile(uuid, i.PrepareFile) != nil {
+            is.Status = model.StatusPrepareError
+            continue
+        }
+
+        if result, err := agent.ExecScript(uuid, i.PrepareCommand); err != nil || !result.Ok {
             is.Status = model.StatusPrepareError
             continue
         }

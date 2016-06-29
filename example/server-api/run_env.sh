@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## pre download images, avoid waiting long time for preparing
-docker inspect daocloud.io/hyper2stack/web:1.1 > /dev/null 2>&1 || docker pull daocloud.io/hyper2stack/web:1.1
+docker inspect daocloud.io/hyper2stack/web:1.2 > /dev/null 2>&1 || docker pull daocloud.io/hyper2stack/web:1.2
 docker inspect daocloud.io/mysql:5.5 > /dev/null 2>&1 || docker pull daocloud.io/mysql:5.5
 
 ### ping
@@ -25,7 +25,7 @@ cat > /tmp/1 << EOF
 
 services:
   web:
-    image: daocloud.io/hyper2stack/web:1.1
+    image: daocloud.io/hyper2stack/web:1.2
     ports:
     - 8000/tcp
     environment:
