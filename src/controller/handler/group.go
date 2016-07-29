@@ -78,7 +78,7 @@ func PutGroup(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if model.GetGroupByNameAndOwnerId(in.Name, GroupVars[r].OwnerId) != nil {
+    if GroupVars[r].Name != in.Name && model.GetGroupByNameAndOwnerId(in.Name, GroupVars[r].OwnerId) != nil {
         w.WriteHeader(http.StatusConflict)
         return
     }

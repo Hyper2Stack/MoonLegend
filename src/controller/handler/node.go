@@ -41,7 +41,7 @@ func PutNode(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if model.GetNodeByNameAndOwnerId(in.Name, NodeVars[r].OwnerId) != nil {
+    if NodeVars[r].Name != in.Name && model.GetNodeByNameAndOwnerId(in.Name, NodeVars[r].OwnerId) != nil {
         w.WriteHeader(http.StatusConflict)
         return
     }
