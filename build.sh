@@ -1,4 +1,4 @@
 #!/bin/bash
 
-export GOPATH=$(readlink -f $(dirname $0))
+export GOPATH=$(cd `dirname $0`;pwd)
 go build -o ${GOPATH}/bin/moonlegend src/controller/*.go
