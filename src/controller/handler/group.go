@@ -298,11 +298,9 @@ func clear(group *model.Group) {
     group.Update()
     for _, isList := range group.Process {
         for _, is := range isList {
-            if is.Status == model.StatusDeployed {
-                is.Status = model.StatusClearing
-                group.Update()
-                i := group.Deployment.FindInstanceByName(is.Name)
-                // TBD, fix, should consider error and timeout
+            is.Status = model.StatusClearing
+            group.Update()
+            if i := group.Deployment.FindInstanceByName(is.Name); i != nil {
                 agent.ExecScript(is.NodeUuid, i.RmCommand)
             }
             is.Status = model.StatusPrepared
