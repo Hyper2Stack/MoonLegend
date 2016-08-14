@@ -16,3 +16,6 @@
     ./example/server-api/run_env.sh 
     ./example/server-api/run_config_file.sh
     ./example/stop.sh
+
+## command line tool
+    ./bin/ml help
