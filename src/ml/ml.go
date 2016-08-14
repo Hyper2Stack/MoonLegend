@@ -176,6 +176,9 @@ var (
     createGroup     = app.Command("create-group", "Create group.")
     createGroupName = createGroup.Arg("name", "Group name.").Required().String()
 
+    showGroup     = app.Command("show-group", "Print group details.")
+    showGroupName = showGroup.Arg("name", "Group name.").Required().String()
+
     deleteGroup     = app.Command("delete-group", "Delete group.")
     deleteGroupName = deleteGroup.Arg("name", "Group name.").Required().String()
 
@@ -189,6 +192,22 @@ var (
     deleteGroupNode      = app.Command("remove-node-from-group", "Remove specified node from group.")
     deleteGroupNodeGroup = deleteGroupNode.Arg("group", "Group name.").Required().String()
     deleteGroupNodeNode  = deleteGroupNode.Arg("node", "Node name.").Required().String()
+
+    deployInit      = app.Command("deploy-init", "Init deployloyment for specified group.")
+    deployInitGroup = deployInit.Arg("group", "Group name.").Required().String()
+    deployInitRepo  = deployInit.Arg("repo", "Absolute repo name with format: namespace/repo:tag.").Required().String()
+
+    deployPrepare      = app.Command("deploy-prepare", "Prepare deployloyment for specified group.")
+    deployPrepareGroup = deployPrepare.Arg("group", "Group name.").Required().String()
+
+    deployExecute      = app.Command("deploy-execute", "Execute deployloyment for specified group.")
+    deployExecuteGroup = deployExecute.Arg("group", "Group name.").Required().String()
+
+    deployClear      = app.Command("deploy-clear", "Clear deployloyment for specified group.")
+    deployClearGroup = deployClear.Arg("group", "Group name.").Required().String()
+
+    deployDelete      = app.Command("deploy-delete", "Delete deployloyment for specified group.")
+    deployDeleteGroup = deployDelete.Arg("group", "Group name.").Required().String()
 )
 
 func main() {
@@ -348,6 +367,13 @@ func main() {
         }
         printGroups(groups)
 
+    case showGroup.FullCommand():
+        group, err := client.New(*server, mustLogin(*server)).Group(*showGroupName)
+        if err != nil {
+            log.Fatalln(err)
+        }
+        printGroup(group)
+
     case createGroup.FullCommand():
         if err := client.New(*server, mustLogin(*server)).CreateGroup(*createGroupName); err != nil {
             log.Fatalln(err)
@@ -372,6 +398,31 @@ func main() {
 
     case deleteGroupNode.FullCommand():
         if err := client.New(*server, mustLogin(*server)).DeleteGroupNode(*deleteGroupNodeGroup, *deleteGroupNodeNode); err != nil {
+            log.Fatalln(err)
+        }
+
+    case deployInit.FullCommand():
+        if err := client.New(*server, mustLogin(*server)).CreateDeployment(*deployInitGroup, *deployInitRepo); err != nil {
+            log.Fatalln(err)
+        }
+
+    case deployPrepare.FullCommand():
+        if err := client.New(*server, mustLogin(*server)).PrepareDeployment(*deployPrepareGroup); err != nil {
+            log.Fatalln(err)
+        }
+
+    case deployExecute.FullCommand():
+        if err := client.New(*server, mustLogin(*server)).ExecuteDeployment(*deployExecuteGroup); err != nil {
+            log.Fatalln(err)
+        }
+
+    case deployClear.FullCommand():
+        if err := client.New(*server, mustLogin(*server)).ClearDeployment(*deployClearGroup); err != nil {
+            log.Fatalln(err)
+        }
+
+    case deployDelete.FullCommand():
+        if err := client.New(*server, mustLogin(*server)).DeleteDeployment(*deployDeleteGroup); err != nil {
             log.Fatalln(err)
         }
 

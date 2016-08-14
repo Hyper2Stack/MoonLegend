@@ -84,7 +84,33 @@ func printNicTags(nic *model.Nic) {
 
 func printGroups(groups []*model.Group) {
     for _, group := range groups {
-        fmt.Printf("%s\t\t%s\n", group.Name, group.Status)
+        fmt.Println(group.Name)
+    }
+}
+
+func getInstanceNameList(deployment *model.Deployment) []string {
+    result := make([]string, 0)
+    for _, ins := range deployment.InstanceList {
+        result = append(result, ins.Name)
+    }
+
+    return result
+}
+
+func printGroup(group *model.Group) {
+    fmt.Printf("--- group details ---\n")
+    fmt.Printf("name:\t%s\n", group.Name)
+    fmt.Printf("status:\t%s\n", group.Status)
+    fmt.Println("deployment:")
+    if group.Deployment != nil {
+        fmt.Printf("  repo:\t%s\n", group.Deployment.Repo)
+        fmt.Printf("  instances:\t%v\n", getInstanceNameList(group.Deployment))
+    }
+    fmt.Println("progress:")
+    for _, array := range group.Process {
+        for _, insStatus := range array {
+            fmt.Printf("  %s:\t%s\n", insStatus.Name, insStatus.Status)
+        }
     }
 }
 
