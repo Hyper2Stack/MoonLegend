@@ -170,6 +170,25 @@ var (
     deleteNicTagNode = deleteNicTag.Arg("node", "Node name.").Required().String()
     deleteNicTagNic  = deleteNicTag.Arg("nic", "Nic name.").Required().String()
     deleteNicTagTag  = deleteNicTag.Arg("tag", "Tag name.").Required().String()
+
+    listGroup = app.Command("list-group", "List group.")
+
+    createGroup     = app.Command("create-group", "Create group.")
+    createGroupName = createGroup.Arg("name", "Group name.").Required().String()
+
+    deleteGroup     = app.Command("delete-group", "Delete group.")
+    deleteGroupName = deleteGroup.Arg("name", "Group name.").Required().String()
+
+    listGroupNode      = app.Command("list-group-node", "List group node.")
+    listGroupNodeGroup = listGroupNode.Arg("group", "Group name.").Required().String()
+
+    createGroupNode      = app.Command("add-node-to-group", "Add specified node to group.")
+    createGroupNodeGroup = createGroupNode.Arg("group", "Group name.").Required().String()
+    createGroupNodeNode  = createGroupNode.Arg("node", "Node name.").Required().String()
+
+    deleteGroupNode      = app.Command("remove-node-from-group", "Remove specified node from group.")
+    deleteGroupNodeGroup = deleteGroupNode.Arg("group", "Group name.").Required().String()
+    deleteGroupNodeNode  = deleteGroupNode.Arg("node", "Node name.").Required().String()
 )
 
 func main() {
@@ -319,6 +338,40 @@ func main() {
 
     case deleteNicTag.FullCommand():
         if err := client.New(*server, mustLogin(*server)).DeleteNicTag(*deleteNicTagNode, *deleteNicTagNic, *deleteNicTagTag); err != nil {
+            log.Fatalln(err)
+        }
+
+    case listGroup.FullCommand():
+        groups, err := client.New(*server, mustLogin(*server)).Groups()
+        if err != nil {
+            log.Fatalln(err)
+        }
+        printGroups(groups)
+
+    case createGroup.FullCommand():
+        if err := client.New(*server, mustLogin(*server)).CreateGroup(*createGroupName); err != nil {
+            log.Fatalln(err)
+        }
+
+    case deleteGroup.FullCommand():
+        if err := client.New(*server, mustLogin(*server)).DeleteGroup(*deleteGroupName); err != nil {
+            log.Fatalln(err)
+        }
+
+    case listGroupNode.FullCommand():
+        nodes, err := client.New(*server, mustLogin(*server)).GroupNodes(*listGroupNodeGroup)
+        if err != nil {
+            log.Fatalln(err)
+        }
+        printGroupNodes(nodes)
+
+    case createGroupNode.FullCommand():
+        if err := client.New(*server, mustLogin(*server)).CreateGroupNode(*createGroupNodeGroup, *createGroupNodeNode); err != nil {
+            log.Fatalln(err)
+        }
+
+    case deleteGroupNode.FullCommand():
+        if err := client.New(*server, mustLogin(*server)).DeleteGroupNode(*deleteGroupNodeGroup, *deleteGroupNodeNode); err != nil {
             log.Fatalln(err)
         }
 

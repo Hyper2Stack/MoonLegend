@@ -81,3 +81,15 @@ func printNicTags(nic *model.Nic) {
         fmt.Println(tag)
     }
 }
+
+func printGroups(groups []*model.Group) {
+    for _, group := range groups {
+        fmt.Printf("%s\t\t%s\n", group.Name, group.Status)
+    }
+}
+
+func printGroupNodes(nodes []*model.Node) {
+    for _, node := range nodes {
+        fmt.Println(node.Name)
+    }
+}
