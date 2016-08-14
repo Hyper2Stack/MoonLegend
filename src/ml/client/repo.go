@@ -44,7 +44,7 @@ func (c *Client) CreateRepo(name string, isPublic bool) error {
         return fmt.Errorf("status code %d, %s", status, string(outbody))
     }
 
-    return nil    
+    return nil
 }
 
 func (c *Client) Repo(name string) (*model.Repo, error) {

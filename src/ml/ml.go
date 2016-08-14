@@ -7,7 +7,6 @@ import (
     "log"
     "os"
     "path"
-//    "strings"
 
     "ml/client"
     "gopkg.in/alecthomas/kingpin.v1"
@@ -40,7 +39,7 @@ func readToken(host string) (string, error) {
 
 func writeToken(host, token string) error {
     info := make(map[string]string)
-    content, err := ioutil.ReadFile(AuthPath) 
+    content, err := ioutil.ReadFile(AuthPath)
     if err == nil {
         if err := json.Unmarshal(content, &info); err != nil {
             return err
@@ -138,6 +137,39 @@ var (
     deleteRepoTag     = app.Command("delete-repo-tag", "Delete repo tag.")
     deleteRepoTagRepo = deleteRepoTag.Arg("repo", "Repo name.").Required().String()
     deleteRepoTagTag  = deleteRepoTag.Arg("tag", "Tag name.").Required().String()
+
+    listNode = app.Command("list-node", "List node.")
+
+    showNode     = app.Command("show-node", "Print details of specified node.")
+    showNodeName = showNode.Arg("name", "Node name.").Required().String()
+
+    deleteNode     = app.Command("delete-node", "Delete node.")
+    deleteNodeName = deleteNode.Arg("name", "Node name.").Required().String()
+
+    listNodeTag     = app.Command("list-node-tag", "List tags of specified node.")
+    listNodeTagNode = listNodeTag.Arg("node", "Node name.").Required().String()
+
+    createNodeTag     = app.Command("create-node-tag", "Create tag on specified node.")
+    createNodeTagNode = createNodeTag.Arg("node", "Node name.").Required().String()
+    createNodeTagTag  = createNodeTag.Arg("tag", "Tag name.").Required().String()
+
+    deleteNodeTag     = app.Command("delete-node-tag", "Delete tag on specified node.")
+    deleteNodeTagNode = deleteNodeTag.Arg("node", "Node name.").Required().String()
+    deleteNodeTagTag  = deleteNodeTag.Arg("tag", "Tag name.").Required().String()
+
+    listNicTag     = app.Command("list-nic-tag", "List tags of specified nic.")
+    listNicTagNode = listNicTag.Arg("node", "Node name.").Required().String()
+    listNicTagNic  = listNicTag.Arg("nic", "Nic name.").Required().String()
+
+    createNicTag     = app.Command("create-nic-tag", "Create tag on specified node nic.")
+    createNicTagNode = createNicTag.Arg("node", "Node name.").Required().String()
+    createNicTagNic  = createNicTag.Arg("nic", "Nic name.").Required().String()
+    createNicTagTag  = createNicTag.Arg("tag", "Tag name.").Required().String()
+
+    deleteNicTag     = app.Command("delete-nic-tag", "Delete tag on specified node nic.")
+    deleteNicTagNode = deleteNicTag.Arg("node", "Node name.").Required().String()
+    deleteNicTagNic  = deleteNicTag.Arg("nic", "Nic name.").Required().String()
+    deleteNicTagTag  = deleteNicTag.Arg("tag", "Tag name.").Required().String()
 )
 
 func main() {
@@ -230,6 +262,63 @@ func main() {
 
     case deleteRepoTag.FullCommand():
         if err := client.New(*server, mustLogin(*server)).DeleteRepoTag(*deleteRepoTagRepo, *deleteRepoTagTag); err != nil {
+            log.Fatalln(err)
+        }
+
+    case listNode.FullCommand():
+        nodes, err := client.New(*server, mustLogin(*server)).Nodes()
+        if err != nil {
+            log.Fatalln(err)
+        }
+        printNodes(nodes)
+
+    case showNode.FullCommand():
+        node, err := client.New(*server, mustLogin(*server)).Node(*showNodeName)
+        if err != nil {
+            log.Fatalln(err)
+        }
+        printNode(node)
+
+    case deleteNode.FullCommand():
+        if err := client.New(*server, mustLogin(*server)).DeleteNode(*deleteNodeName); err != nil {
+            log.Fatalln(err)
+        }
+
+    case listNodeTag.FullCommand():
+        node, err := client.New(*server, mustLogin(*server)).Node(*listNodeTagNode)
+        if err != nil {
+            log.Fatalln(err)
+        }
+        printNodeTags(node)
+
+    case createNodeTag.FullCommand():
+        if err := client.New(*server, mustLogin(*server)).CreateNodeTag(*createNodeTagNode, *createNodeTagTag); err != nil {
+            log.Fatalln(err)
+        }
+
+    case deleteNodeTag.FullCommand():
+        if err := client.New(*server, mustLogin(*server)).DeleteNodeTag(*deleteNodeTagNode, *deleteNodeTagTag); err != nil {
+            log.Fatalln(err)
+        }
+
+    case listNicTag.FullCommand():
+        node, err := client.New(*server, mustLogin(*server)).Node(*listNicTagNode)
+        if err != nil {
+            log.Fatalln(err)
+        }
+        nic := findNic(node, *listNicTagNic)
+        if nic == nil {
+            log.Fatalf("nic %s not found\n", *listNicTagNic)
+        }
+        printNicTags(nic)
+
+    case createNicTag.FullCommand():
+        if err := client.New(*server, mustLogin(*server)).CreateNicTag(*createNicTagNode, *createNicTagNic, *createNicTagTag); err != nil {
+            log.Fatalln(err)
+        }
+
+    case deleteNicTag.FullCommand():
+        if err := client.New(*server, mustLogin(*server)).DeleteNicTag(*deleteNicTagNode, *deleteNicTagNic, *deleteNicTagTag); err != nil {
             log.Fatalln(err)
         }
 
