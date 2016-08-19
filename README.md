@@ -5,7 +5,7 @@
     ./build.sh
 
 ## unit test
-    ./test.sh
+    go test controller/...
 
 ## example
     Make sure [moon agent](https://github.com/Hyper2Stack/Moon/blob/master/README.md) is installed
