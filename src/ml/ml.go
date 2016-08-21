@@ -94,7 +94,7 @@ func mustLogin(server string) string {
 
 var (
     app    = kingpin.New("ml", "A command-line client of moonlegend.")
-    server = app.Flag("server", "Server address.").Default("localhost:8000").OverrideDefaultFromEnvar("MOONLEGEND_SERVER").String()
+    server = app.Flag("server", "Server address.").Default("localhost:8080").OverrideDefaultFromEnvar("MOONLEGEND_SERVER").String()
 
     ping   = app.Command("ping", "Ping moonlegend server.")
 
