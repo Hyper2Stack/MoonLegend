@@ -22,6 +22,9 @@ start_service() {
 
   echo "done."
   echo ""
+  echo "====== Test ======"
+  echo "curl localhost:8080/api/v1/ping"
+  echo ""
   echo "====== Runtime Info ======"
   echo "moonlegend config: /tmp/moonlegend.json"
   echo "moonlegend log:    /tmp/moonlegend.log"
@@ -29,7 +32,7 @@ start_service() {
 }
 
 stop_service() {
-  ps -ef | grep moonlegend | grep -v grep | awk '{print $2}' | xargs kill -9
+  ps -ef | grep "moonlegend " | grep -v grep | awk '{print $2}' | xargs kill -9
 }
 
 remove_service() {
